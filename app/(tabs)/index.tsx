@@ -1,17 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
 import { StyleSheet, Text, View, SectionList } from "react-native";
 import Header from "@/components/Header";
 import StemCard from "@/components/StemCard";
-
-const localImage = require("../../assets/cards/aayliahbrownfront.png");
+import CardModal from "@/components/CardModal";
 
 const categories = [
   {
     title: "Science",
     data: [
-      { id: "1", imageUrl: localImage },
+      { id: "1", imageUrl: "https://picsum.photos/200/300?grayscale" },
       { id: "2" }, // Missing card (question mark placeholder)
-      { id: "3", imageUrl: "https://example.com/card2.jpg" },
+      { id: "3", imageUrl: "https://picsum.photos/id/870/200/300?grayscale&blur=2" },
     ],
   },
   {
@@ -33,12 +32,12 @@ const categories = [
 ];
 
 export default function HomeScreen() {
+  const [selectedCard, setSelectedCard] = useState<string | null>(null);
+
   return (
     <View style={styles.container}>
-      <Header
-        title="Wallet"
-        onProfilePress={() => console.log("Profile icon pressed")}
-      />
+      <Header title="Wallet" />
+
       <SectionList
         sections={categories}
         keyExtractor={(item) => item.id}
@@ -54,6 +53,7 @@ export default function HomeScreen() {
                   key={card.id}
                   imageUrl={card.imageUrl}
                   style={styles.card}
+                  onPress={() => setSelectedCard(card.imageUrl || null)}
                 />
               ))}
             </View>
@@ -62,6 +62,13 @@ export default function HomeScreen() {
         contentContainerStyle={styles.listContent}
         ListFooterComponent={<View style={{ height: 20 }} />}
         ListHeaderComponent={<View style={{ height: 20 }} />}
+      />
+
+      {/* Modal for Enlarged Card */}
+      <CardModal
+        visible={!!selectedCard}
+        imageUrl={selectedCard || undefined}
+        onClose={() => setSelectedCard(null)}
       />
     </View>
   );
@@ -107,4 +114,3 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 });
-
