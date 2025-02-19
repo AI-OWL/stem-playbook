@@ -1,74 +1,110 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import React from "react";
+import { StyleSheet, Text, View, SectionList } from "react-native";
+import Header from "@/components/Header";
+import StemCard from "@/components/StemCard";
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+const localImage = require("../../assets/cards/aayliahbrownfront.png");
+
+const categories = [
+  {
+    title: "Science",
+    data: [
+      { id: "1", imageUrl: localImage },
+      { id: "2" }, // Missing card (question mark placeholder)
+      { id: "3", imageUrl: "https://example.com/card2.jpg" },
+    ],
+  },
+  {
+    title: "Engineering",
+    data: [
+      { id: "4", imageUrl: "https://example.com/card3.jpg" },
+      { id: "5" }, // Missing card (question mark placeholder)
+      { id: "6", imageUrl: "https://example.com/card4.jpg" },
+      { id: "7" }, // Missing card
+    ],
+  },
+  {
+    title: "Mathematics",
+    data: [
+      { id: "8", imageUrl: "https://example.com/card5.jpg" },
+      { id: "9", imageUrl: "https://example.com/card6.jpg" },
+    ],
+  },
+];
 
 export default function HomeScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={styles.container}>
+      <Header
+        title="Wallet"
+        onProfilePress={() => console.log("Profile icon pressed")}
+      />
+      <SectionList
+        sections={categories}
+        keyExtractor={(item) => item.id}
+        renderItem={() => null} // No need to render items separately since we handle them in the section header
+        renderSectionHeader={({ section: { title, data } }) => (
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeaderContainer}>
+              <Text style={styles.sectionHeader}>{title}</Text>
+            </View>
+            <View style={styles.grid}>
+              {data.map((card) => (
+                <StemCard
+                  key={card.id}
+                  imageUrl={card.imageUrl}
+                  style={styles.card}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+        contentContainerStyle={styles.listContent}
+        ListFooterComponent={<View style={{ height: 20 }} />}
+        ListHeaderComponent={<View style={{ height: 20 }} />}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#2D3E84",
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  sectionContainer: {
+    marginBottom: 20,
+  },
+  sectionHeaderContainer: {
+    backgroundColor: "#FFFFFF20", // Slightly transparent white
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 15,
+    alignSelf: "center",
+    width: "90%",
+  },
+  sectionHeader: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    textAlign: "center",
+    textTransform: "uppercase",
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  card: {
+    width: "48%", // Two cards per row with spacing
+    marginBottom: 10,
   },
 });
+
