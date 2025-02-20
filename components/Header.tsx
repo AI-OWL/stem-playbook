@@ -2,18 +2,20 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 interface HeaderProps {
   title: string;
-  onProfilePress?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ title, onProfilePress }) => {
+const Header: React.FC<HeaderProps> = ({ title }) => {
+  const router = useRouter();
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
         <Text style={styles.title}>{title}</Text>
-        <TouchableOpacity onPress={onProfilePress} style={styles.iconContainer}>
+        <TouchableOpacity onPress={() => router.push('/profile')} style={styles.iconContainer}>
           <Ionicons name="person-circle-outline" size={24} color="black" />
         </TouchableOpacity>
       </View>
@@ -23,7 +25,7 @@ const Header: React.FC<HeaderProps> = ({ title, onProfilePress }) => {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#F0EBF8', // Ensures the status bar area blends in
+    backgroundColor: '#F0EBF8',
   },
   container: {
     height: 50,

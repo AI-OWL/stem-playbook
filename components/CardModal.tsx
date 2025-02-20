@@ -8,51 +8,66 @@ import {
   StyleSheet,
   Animated,
 } from "react-native";
+import { useRouter } from "expo-router";
 
 interface CardModalProps {
   visible: boolean;
   imageUrl?: string;
   onClose: () => void;
+  cardId?: string;
 }
 
-const CardModal: React.FC<CardModalProps> = ({ visible, imageUrl, onClose }) => {
-  // Control the modal's mounting and store the current image URL.
+const CardModal: React.FC<CardModalProps> = ({ visible, imageUrl, onClose, cardId }) => {
   const [internalVisible, setInternalVisible] = useState(visible);
-  const [localImageUrl, setLocalImageUrl] = useState(imageUrl);
-
-  // Animated opacity value for the entire overlay.
+  const [localImageUrl, setLocalImageUrl] = useState(imageUrl); // Preserve image
   const opacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const router = useRouter();
 
   useEffect(() => {
     if (visible) {
-      // When opening: update the internal state and fade in immediately.
       setInternalVisible(true);
-      setLocalImageUrl(imageUrl);
+      if (imageUrl) setLocalImageUrl(imageUrl); // Set image only when opening
+
       Animated.timing(opacity, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }).start();
     } else {
-      // When closing: start the fade-out immediately.
       Animated.timing(opacity, {
         toValue: 0,
         duration: 300,
         useNativeDriver: true,
       }).start(() => {
-        // After the fade-out completes, unmount the modal.
         setInternalVisible(false);
+        setLocalImageUrl(undefined); // ✅ Clear image only after fade-out
       });
     }
-  }, [visible, imageUrl, opacity]);
+  }, [visible, imageUrl]);
 
   if (!internalVisible) return null;
 
   return (
-    <Modal visible={true} transparent animationType="none" onRequestClose={onClose}>
+    <Modal 
+      visible={internalVisible} 
+      transparent 
+      animationType="none" 
+      onRequestClose={onClose}
+    >
       <TouchableWithoutFeedback onPress={onClose}>
-        <Animated.View style={[styles.overlay, { opacity }]}>
-          <TouchableWithoutFeedback onPress={() => {}}>
+        <Animated.View 
+          style={[styles.overlay, { opacity }]}
+          pointerEvents={visible ? "auto" : "none"}
+        >
+          <TouchableWithoutFeedback
+            onPress={() => {
+              // Only navigate if the card is NOT a mystery card
+              if (cardId && imageUrl) {
+                onClose(); 
+                router.push(`/cardDetails/${cardId}`);
+              }
+            }}
+          >
             <View style={styles.modalContent}>
               {localImageUrl ? (
                 <Image source={{ uri: localImageUrl }} style={styles.image} />

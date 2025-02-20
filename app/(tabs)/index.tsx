@@ -32,7 +32,8 @@ const categories = [
 ];
 
 export default function HomeScreen() {
-  const [selectedCard, setSelectedCard] = useState<string | null>(null);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedCardImageUrl, setSelectedCardImageUrl] = useState<string | null>(null);
 
   return (
     <View style={styles.container}>
@@ -53,7 +54,10 @@ export default function HomeScreen() {
                   key={card.id}
                   imageUrl={card.imageUrl}
                   style={styles.card}
-                  onPress={() => setSelectedCard(card.imageUrl || null)}
+                  onPress={() => {
+                    setSelectedCardId(card.id); // Store card ID
+                    setSelectedCardImageUrl(card.imageUrl || null); // Store image URL
+                  }}
                 />
               ))}
             </View>
@@ -66,9 +70,13 @@ export default function HomeScreen() {
 
       {/* Modal for Enlarged Card */}
       <CardModal
-        visible={!!selectedCard}
-        imageUrl={selectedCard || undefined}
-        onClose={() => setSelectedCard(null)}
+        visible={!!selectedCardId}
+        imageUrl={selectedCardImageUrl || undefined}
+        cardId={selectedCardId || undefined} // ✅ Pass the card ID to CardModal
+        onClose={() => {
+          setSelectedCardId(null);
+          setSelectedCardImageUrl(null);
+        }}
       />
     </View>
   );
@@ -87,7 +95,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionHeaderContainer: {
-    backgroundColor: "#FFFFFF20", // Slightly transparent white
+    backgroundColor: "#FFFFFF20",
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 10,
