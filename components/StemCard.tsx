@@ -1,13 +1,14 @@
 import React from "react";
-import { View, Image, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Image, Text, StyleSheet, TouchableOpacity, ViewStyle } from "react-native";
 
 interface StemCardProps {
   imageUrl?: string;
   name?: string;
   onPress: () => void; // New prop to handle modal opening
+  style?: ViewStyle
 }
 
-const StemCard: React.FC<StemCardProps> = ({ imageUrl, name, onPress }) => {
+const StemCard: React.FC<StemCardProps> = ({ imageUrl, name, onPress, style }) => {
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardWrapper}>

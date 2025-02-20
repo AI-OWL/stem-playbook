@@ -1,27 +1,52 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { View, Text, Button, Image, StyleSheet } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import React from "react";
+import { Video, ResizeMode } from "expo-av"; // Using expo-av for video playback
 
 export default function CardDetailsScreen() {
   const { id } = useLocalSearchParams(); // Get the card ID from the URL
   const router = useRouter();
 
+  // Sample data (Replace with actual fetched data in the future)
+  const cardData = {
+    name: "Rick Astley",
+    videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4", // Sample video
+    tagline: "MC2 STEM High School Graduate is now process engineer at Rockwell Automation",
+    description:
+      "Aalyah Brown first discovered engineering during a summer program when she was in high school. A graduate of MC2 High School, Aaliyah has an undergraduate degree in engineering technology, is working as a process engineer at Rockwell Automation, and is pursuing a master’s in engineering management from Auburn University.",
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Card Details</Text>
-      <Text style={styles.cardId}>Card ID: {id}</Text>
+      {/* Sticky Title */}
+      <View style={styles.stickyTitleContainer}>
+        <Text style={styles.name}>{cardData.name}</Text>
+      </View>
 
-      {/* Placeholder for the card image */}
-      <Image
-        source={{ uri: `https://your-image-url.com/card_${id}.jpg` }} // Example dynamic image
-        style={styles.image}
-      />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Space at the top so content doesn't overlap the sticky title */}
+        <View style={{ height: 60 }} />
 
-      <Text style={styles.description}>
-        This is a detailed view of the card with ID {id}. You can show more info here.
-      </Text>
+        {/* Video Player */}
+        <Video
+          source={{ uri: cardData.videoUrl }}
+          style={styles.video}
+          useNativeControls
+          resizeMode={ResizeMode.CONTAIN} // Correct way
+          isLooping
+        />
 
-      <Button title="Close" onPress={() => router.back()} />
+        {/* Card Tagline */}
+        <Text style={styles.tagline}>{cardData.tagline}</Text>
+
+        {/* Card Description */}
+        <Text style={styles.description}>{cardData.description}</Text>
+
+        {/* Redeem Button at the Bottom */}
+        <TouchableOpacity style={styles.redeemButton} onPress={() => alert("Points Redeemed!")}>
+          <Text style={styles.redeemButtonText}>Redeem Points</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 }
@@ -29,29 +54,66 @@ export default function CardDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "white",
-    padding: 20,
+    backgroundColor: "#1c1c1e", // Dark theme background
+    paddingHorizontal: 20,
   },
-  title: {
+  stickyTitleContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#1c1c1e", // Same background color to blend in
+    paddingVertical: 10,
+    alignItems: "center",
+    zIndex: 10, // Ensures it stays on top
+  },
+  scrollContent: {
+    paddingBottom: 100, // Space for the button
+  },
+  name: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 10,
+    textAlign: "center",
+    color: "#fff",
   },
-  cardId: {
-    fontSize: 16,
-    color: "gray",
+  video: {
+    width: "100%",
+    height: 200,
+    borderRadius: 10,
+    backgroundColor: "#000",
+    alignSelf: "center",
   },
-  image: {
-    width: 200,
-    height: 300,
-    marginVertical: 20,
-    resizeMode: "contain",
+  tagline: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#fff",
+    textAlign: "center",
+    marginTop: 10,
   },
   description: {
     fontSize: 16,
-    textAlign: "center",
-    marginBottom: 20,
+    color: "#ddd",
+    textAlign: "justify",
+    marginTop: 10,
+    paddingHorizontal: 10,
+    lineHeight: 24, // Increased line spacing for readability
+  },
+  redeemButton: {
+    position: "absolute",
+    bottom: 20,
+    alignSelf: "center",
+    backgroundColor: "#ddd",
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  redeemButtonText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
   },
 });
