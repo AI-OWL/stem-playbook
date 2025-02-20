@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
-import { Lock, Mail, User, BookOpen, ArrowLeft } from "lucid-react";
+import { Lock, Mail, User, BookOpen } from "lucid-react";
 
 interface AuthData {
   email: string;
@@ -12,17 +11,9 @@ interface AuthData {
   name?: string;
 }
 
-interface AccountDetails {
-  avatar: string;
-  grade: string;
-  subject: string;
-}
-
 export default function WelcomeScreen() {
-  const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userName, setUserName] = useState("");
-  const [showAccountSetup, setShowAccountSetup] = useState(false);
   const [loginData, setLoginData] = useState<AuthData>({
     email: "",
     password: "",
@@ -32,13 +23,9 @@ export default function WelcomeScreen() {
     password: "",
     name: "",
   });
-  const [accountDetails, setAccountDetails] = useState<AccountDetails>({
-    avatar: "default",
-    grade: "",
-    subject: "",
-  });
 
   useEffect(() => {
+    // Check if user is already authenticated
     const authStatus = localStorage.getItem("isAuthenticated");
     const storedUserName = localStorage.getItem("userName");
     if (authStatus === "true" && storedUserName) {
@@ -49,33 +36,34 @@ export default function WelcomeScreen() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would validate credentials
+    // Here you would typically validate against your backend
     localStorage.setItem("isAuthenticated", "true");
     localStorage.setItem("userEmail", loginData.email);
-    localStorage.setItem("userName", "User");
-    router.push("(tabs)/index");
+    localStorage.setItem("userName", "User"); // Replace with actual username
+    setUserName("User");
+    setIsAuthenticated(true);
   };
 
-  const handleInitialSignup = (e: React.FormEvent) => {
+  const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
-    setShowAccountSetup(true);
-  };
-
-  const handleFinalSignup = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Here you would send all signup data to backend
+    // Here you would typically send data to your backend
     localStorage.setItem("isAuthenticated", "true");
     localStorage.setItem("userEmail", signupData.email);
     localStorage.setItem("userName", signupData.name || "");
-    localStorage.setItem("userGrade", accountDetails.grade);
-    localStorage.setItem("userSubject", accountDetails.subject);
-    router.push("(tabs)/index");
+    setUserName(signupData.name || "");
+    setIsAuthenticated(true);
   };
 
   const Logo = () => (
-    <div className="mb-6 flex items-center justify-center">
-      <div className="relative h-24 w-24">
-        <BookOpen className="h-full w-full text-blue-600" />
+      <div className="mb-6 flex items-center justify-center">
+        <div className="relative h-32 w-32">
+          <Image
+            src="/assets/images/adaptive-icon.png"
+            alt="STEM Playbook Logo"
+            layout="fill"
+            objectFit="contain"
+            priority
+          />
       </div>
     </div>
   );
@@ -97,7 +85,10 @@ export default function WelcomeScreen() {
           <Button
             className="w-full bg-blue-800 hover:bg-blue-900"
             size="lg"
-            onClick={() => router.push("(tabs)/index")}
+            onClick={() => {
+              // Handle game start
+              console.log("Starting game...");
+            }}
           >
             Let's Play
           </Button>
@@ -112,77 +103,6 @@ export default function WelcomeScreen() {
           >
             Logout
           </Button>
-        </Card>
-      </div>
-    );
-  }
-
-  if (showAccountSetup) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-gray-100 p-4">
-        <Logo />
-        <GameTitle />
-        <Card className="w-full max-w-md p-6">
-          <Button
-            variant="ghost"
-            className="mb-4"
-            onClick={() => setShowAccountSetup(false)}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-          </Button>
-          <h2 className="mb-6 text-2xl font-bold">Complete Your Profile</h2>
-          <form onSubmit={handleFinalSignup} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Select Avatar</label>
-              <div className="grid grid-cols-4 gap-2">
-                {["1", "2", "3", "4"].map((avatar) => (
-                  <Button
-                    key={avatar}
-                    type="button"
-                    variant={accountDetails.avatar === avatar ? "default" : "outline"}
-                    className="h-16 w-16"
-                    onClick={() => setAccountDetails({...accountDetails, avatar})}
-                  >
-                    {avatar}
-                  </Button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Grade Level</label>
-              <select
-                className="mt-1 block w-full rounded-md border border-gray-300 p-2"
-                value={accountDetails.grade}
-                onChange={(e) => setAccountDetails({...accountDetails, grade: e.target.value})}
-                required
-              >
-                <option value="">Select Grade</option>
-                <option value="6">6th Grade</option>
-                <option value="7">7th Grade</option>
-                <option value="8">8th Grade</option>
-                <option value="9">High School</option>
-                <option value="10">College</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Favorite Subject</label>
-              <select
-                className="mt-1 block w-full rounded-md border border-gray-300 p-2"
-                value={accountDetails.subject}
-                onChange={(e) => setAccountDetails({...accountDetails, subject: e.target.value})}
-                required
-              >
-                <option value="">Select Subject</option>
-                <option value="math">Mathematics</option>
-                <option value="science">Science</option>
-                <option value="technology">Technology</option>
-                <option value="engineering">Engineering</option>
-              </select>
-            </div>
-            <Button type="submit" className="w-full">
-              Complete Setup & Start Playing
-            </Button>
-          </form>
         </Card>
       </div>
     );
@@ -234,7 +154,7 @@ export default function WelcomeScreen() {
           </TabsContent>
 
           <TabsContent value="signup">
-            <form onSubmit={handleInitialSignup} className="space-y-4">
+            <form onSubmit={handleSignup} className="space-y-4">
               <div className="relative">
                 <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                 <Input
@@ -275,7 +195,7 @@ export default function WelcomeScreen() {
                 />
               </div>
               <Button type="submit" className="w-full">
-                Continue
+                Create Account
               </Button>
             </form>
           </TabsContent>
