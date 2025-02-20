@@ -10,7 +10,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ title, onProfilePress }) => {
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
         <Text style={styles.title}>{title}</Text>
         <TouchableOpacity onPress={onProfilePress} style={styles.iconContainer}>

@@ -60,7 +60,7 @@ export default function HomeScreen() {
           </View>
         )}
         contentContainerStyle={styles.listContent}
-        ListFooterComponent={<View style={{ height: 20 }} />}
+        ListFooterComponent={<View style={{ height: 50 }} />}
         ListHeaderComponent={<View style={{ height: 20 }} />}
       />
 
