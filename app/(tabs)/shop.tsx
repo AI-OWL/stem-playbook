@@ -20,14 +20,57 @@ import { Colors } from '@/constants/Colors';
 
 const ITEMS_PER_PAGE = 10;
 const ANIMATION_DURATION = 300;
+const STORAGE_KEYS = {
+  THEME: 'theme',
+  USER_POINTS: 'userPoints',
+};
 
-// Create AnimatedFlatList at the top level
+const MOCK_STORE_ITEMS = [
+  {
+    id: '1',
+    title: 'Premium Avatar',
+    body: 'Stand out with this exclusive animated avatar.',
+    points: 500,
+    imageUrl: '/api/placeholder/100/100',
+    type: 'avatar',
+    rarity: 'rare',
+  },
+  {
+    id: '2',
+    title: 'Dark Theme Pack',
+    body: 'A collection of dark themes for your profile.',
+    points: 750,
+    imageUrl: '/api/placeholder/100/100',
+    type: 'theme',
+    rarity: 'epic',
+  },
+  {
+    id: '3',
+    title: 'Achievement Badge',
+    body: 'Show off your dedication with this special badge.',
+    points: 300,
+    imageUrl: '/api/placeholder/100/100',
+    type: 'badge',
+    rarity: 'common',
+  },
+  {
+    id: '4',
+    title: 'Profile Background',
+    body: 'Customize your profile with this animated background.',
+    points: 1000,
+    imageUrl: '/api/placeholder/100/100',
+    type: 'background',
+    rarity: 'legendary',
+  },
+];
+
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
-const Shop = () => {
+export default function Shop() {
   const systemColorScheme = useColorScheme();
   const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === 'dark');
   const colors = useMemo(() => Colors[isDarkMode ? 'dark' : 'light'], [isDarkMode]);
+
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,16 +93,35 @@ const Shop = () => {
     const initializeApp = async () => {
       await Promise.all([
         loadThemePreference(),
-        loadUserPoints(),
-        loadItems(true),
+        loadInitialData(),
       ]);
     };
 
     initializeApp();
+
+    return () => {
+      clearInterval(refreshInterval);
+    };
   }, []);
 
   useEffect(() => {
-    setIsDarkMode(systemColorScheme === 'dark');
+    const checkTheme = async () => {
+      try {
+        const savedTheme = await AsyncStorage.getItem('theme');
+        if (savedTheme !== null) {
+          setIsDarkMode(savedTheme === 'dark');
+        } else {
+          setIsDarkMode(systemColorScheme === 'dark');
+        }
+      } catch (error) {
+        console.error('Error checking theme:', error);
+      }
+    };
+
+    checkTheme();
+    const interval = setInterval(checkTheme, 1000);
+
+    return () => clearInterval(interval);
   }, [systemColorScheme]);
 
   const loadThemePreference = async () => {
@@ -73,9 +135,25 @@ const Shop = () => {
     }
   };
 
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        await Promise.all([
+          loadUserPoints(),
+          loadItems(true),
+        ]);
+      } catch (error) {
+        console.error('Initialization error:', error);
+        Alert.alert('Error', 'Failed to initialize the store. Please try again.');
+      }
+    };
+
+    initializeApp();
+  }, []);
+
   const loadUserPoints = async () => {
     try {
-      const points = await AsyncStorage.getItem('userPoints');
+      const points = await AsyncStorage.getItem(STORAGE_KEYS.USER_POINTS);
       setUserPoints(points ? parseInt(points, 10) : 1000);
     } catch (error) {
       console.error('Error loading user points:', error);
@@ -97,47 +175,9 @@ const Shop = () => {
         setIsLoadingMore(true);
       }
 
-      // Simulated API call
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      const newItems = [
-        {
-          id: '1',
-          title: 'Premium Avatar',
-          body: 'Stand out with this exclusive animated avatar.',
-          points: 500,
-          imageUrl: '/api/placeholder/100/100',
-          type: 'avatar',
-          rarity: 'rare',
-        },
-        {
-          id: '2',
-          title: 'Dark Theme Pack',
-          body: 'A collection of dark themes for your profile.',
-          points: 750,
-          imageUrl: '/api/placeholder/100/100',
-          type: 'theme',
-          rarity: 'epic',
-        },
-        {
-          id: '3',
-          title: 'Achievement Badge',
-          body: 'Show off your dedication with this special badge.',
-          points: 300,
-          imageUrl: '/api/placeholder/100/100',
-          type: 'badge',
-          rarity: 'common',
-        },
-        {
-          id: '4',
-          title: 'Profile Background',
-          body: 'Customize your profile with this animated background.',
-          points: 1000,
-          imageUrl: '/api/placeholder/100/100',
-          type: 'background',
-          rarity: 'legendary',
-        },
-      ].map(item => ({
+      const newItems = MOCK_STORE_ITEMS.map(item => ({
         ...item,
         animValue: new Animated.Value(0),
       }));
@@ -150,7 +190,6 @@ const Shop = () => {
 
       setHasMore(newItems.length === ITEMS_PER_PAGE);
 
-      // Animate new items
       Animated.stagger(100, newItems.map(item =>
         Animated.spring(item.animValue, {
           toValue: 1,
@@ -198,10 +237,9 @@ const Shop = () => {
           onPress: async () => {
             try {
               const newPoints = userPoints - item.points;
-              await AsyncStorage.setItem('userPoints', newPoints.toString());
+              await AsyncStorage.setItem(STORAGE_KEYS.USER_POINTS, newPoints.toString());
               setUserPoints(newPoints);
 
-              // Animate the purchased item
               Animated.sequence([
                 Animated.timing(item.animValue, {
                   toValue: 0.8,
@@ -238,28 +276,60 @@ const Shop = () => {
         },
       ]}
     >
-      <ThemedText style={styles.pointsText}>
-        <FontAwesome name="star" size={20} color={colors.tint} /> {userPoints} Points
+      <ThemedText
+        style={[
+          styles.pointsText,
+          { color: isDarkMode ? '#FFFFFF' : colors.text }
+        ]}
+      >
+        <FontAwesome
+          name="star"
+          size={20}
+          color={isDarkMode ? '#FFD700' : colors.tint}
+        /> {userPoints} Points
       </ThemedText>
     </Animated.View>
-  ), [colors, headerOpacity, userPoints]);
+  ), [colors, headerOpacity, userPoints, isDarkMode]);
 
   const renderFooter = useCallback(() => {
     if (!hasMore) return null;
     return (
       <View style={styles.footer}>
-        <ActivityIndicator color={colors.tint} />
-        <ThemedText style={styles.footerText}>Loading more items...</ThemedText>
+        <ActivityIndicator
+          color={isDarkMode ? '#FFFFFF' : colors.tint}
+        />
+        <ThemedText
+          style={[
+            styles.footerText,
+            { color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary }
+          ]}
+        >
+          Loading more items...
+        </ThemedText>
       </View>
     );
-  }, [hasMore, colors]);
+  }, [hasMore, colors, isDarkMode]);
 
   const renderEmpty = useCallback(() => (
-    <View style={styles.emptyContainer}>
-      <FontAwesome name="shopping-basket" size={48} color={colors.icon} />
-      <ThemedText style={styles.emptyText}>No items available</ThemedText>
+    <View style={[
+      styles.emptyContainer,
+      { backgroundColor: colors.background }
+    ]}>
+      <FontAwesome
+        name="shopping-basket"
+        size={48}
+        color={isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.icon}
+      />
+      <ThemedText
+        style={[
+          styles.emptyText,
+          { color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary }
+        ]}
+      >
+        No items available
+      </ThemedText>
     </View>
-  ), [colors]);
+  ), [colors, isDarkMode]);
 
   const renderItem = useCallback(({ item, index }) => {
     const inputRange = [
@@ -283,12 +353,15 @@ const Shop = () => {
 
     return (
       <Animated.View
-        style={{
-          opacity: Animated.multiply(opacity, item.animValue),
-          transform: [
-            { scale: Animated.multiply(scale, item.animValue) },
-          ],
-        }}
+        style={[
+          styles.itemContainer,
+          {
+            opacity: Animated.multiply(opacity, item.animValue),
+            transform: [
+              { scale: Animated.multiply(scale, item.animValue) },
+            ],
+          }
+        ]}
       >
         <StoreItem
           title={item.title}
@@ -300,31 +373,49 @@ const Shop = () => {
           onPress={() => handlePurchase(item)}
           disabled={userPoints < item.points}
           style={{
-            backgroundColor: colors.card,
-            borderColor: colors.border,
+            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : colors.card,
+            borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : colors.border,
           }}
+          textColor={isDarkMode ? '#FFFFFF' : colors.text}
+          secondaryTextColor={isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary}
         />
       </Animated.View>
     );
-  }, [colors, handlePurchase, scrollY]);
+  }, [colors, handlePurchase, scrollY, isDarkMode]);
 
   const keyExtractor = useCallback((item) => item.id, []);
 
   if (loading && !refreshing) {
     return (
-      <ThemedView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.tint} />
-        <ThemedText style={styles.loadingText}>Loading store...</ThemedText>
+      <ThemedView style={[
+        styles.loadingContainer,
+        { backgroundColor: colors.background }
+      ]}>
+        <ActivityIndicator
+          size="large"
+          color={isDarkMode ? '#FFFFFF' : colors.tint}
+        />
+        <ThemedText style={[
+          styles.loadingText,
+          { color: isDarkMode ? '#FFFFFF' : colors.text }
+        ]}>
+          Loading store...
+        </ThemedText>
       </ThemedView>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[
+      styles.container,
+      { backgroundColor: colors.background }
+    ]}>
       <Header
         title="Store"
         onProfilePress={() => console.log('Profile icon pressed')}
         style={{ backgroundColor: colors.background }}
+        textColor={isDarkMode ? '#FFFFFF' : colors.text}
+        iconColor={isDarkMode ? '#FFFFFF' : colors.tint}
       />
 
       <AnimatedFlatList
@@ -334,6 +425,7 @@ const Shop = () => {
         contentContainerStyle={[
           styles.listContainer,
           items.length === 0 && styles.emptyList,
+          { backgroundColor: colors.background }
         ]}
         ListHeaderComponent={renderHeader}
         ListFooterComponent={renderFooter}
@@ -344,8 +436,9 @@ const Shop = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={colors.tint}
-            colors={[colors.tint]}
+            tintColor={isDarkMode ? '#FFFFFF' : colors.tint}
+            colors={[isDarkMode ? '#FFFFFF' : colors.tint]}
+            progressBackgroundColor={colors.card}
           />
         }
         onScroll={Animated.event(
@@ -360,7 +453,7 @@ const Shop = () => {
       />
     </ThemedView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -370,13 +463,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   headerContainer: {
     padding: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -385,28 +483,41 @@ const styles = StyleSheet.create({
   pointsText: {
     fontSize: 18,
     fontWeight: '600',
+    letterSpacing: 0.5,
   },
   listContainer: {
     padding: 16,
+    paddingTop: 8,
+  },
+  itemContainer: {
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   emptyList: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    minHeight: 400,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
+    borderRadius: 16,
+    margin: 16,
   },
   emptyText: {
     fontSize: 16,
     marginTop: 16,
     textAlign: 'center',
+    fontWeight: '500',
+    letterSpacing: 0.5,
   },
   footer: {
     padding: 16,
+    paddingTop: 8,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
@@ -414,7 +525,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-  },
+    fontWeight: '500',
+    letterSpacing: 0.3,
+  }
 });
-
-export default Shop;

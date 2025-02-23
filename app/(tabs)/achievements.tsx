@@ -100,12 +100,38 @@ const Achievements = () => {
   const refreshInterval = useRef(null);
   const isMounted = useRef(true);
 
-  // Update theme when system theme changes
+  // Enhanced theme management
   useEffect(() => {
-    if (isMounted.current) {
-      setIsDarkMode(systemColorScheme === 'dark');
-    }
+    const checkAndUpdateTheme = async () => {
+      try {
+        const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
+        if (savedTheme !== null) {
+          setIsDarkMode(savedTheme === 'dark');
+        } else {
+          setIsDarkMode(systemColorScheme === 'dark');
+          await AsyncStorage.setItem(STORAGE_KEYS.THEME, systemColorScheme);
+        }
+      } catch (error) {
+        console.error('Theme check error:', error);
+      }
+    };
+
+    checkAndUpdateTheme();
+    const themeInterval = setInterval(checkAndUpdateTheme, 1000);
+
+    return () => clearInterval(themeInterval);
   }, [systemColorScheme]);
+
+  // Theme change handler
+  const toggleTheme = useCallback(async () => {
+    try {
+      const newTheme = !isDarkMode;
+      setIsDarkMode(newTheme);
+      await AsyncStorage.setItem(STORAGE_KEYS.THEME, newTheme ? 'dark' : 'light');
+    } catch (error) {
+      console.error('Theme toggle error:', error);
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
     initializeApp();
@@ -117,235 +143,247 @@ const Achievements = () => {
       }
       itemAnimations.clear();
     };
-  }, []);
+  }, [])
+    const initializeApp = async () => {
+      try {
+        await Promise.all([
+          loadThemePreference(),
+          loadInitialData(),
+        ]);
 
-  const initializeApp = async () => {
-    try {
-      await Promise.all([
-        loadThemePreference(),
-        loadInitialData(),
-      ]);
+        refreshInterval.current = setInterval(() => {
+          if (!refreshing && isMounted.current) {
+            loadAchievements(true);
+          }
+        }, REFRESH_INTERVAL);
+      } catch (error) {
+        console.error('Initialization error:', error);
+        setError('Failed to initialize app');
+      }
+    };
 
-      refreshInterval.current = setInterval(() => {
-        if (!refreshing && isMounted.current) {
-          loadAchievements(true);
+    const loadThemePreference = async () => {
+      try {
+        const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
+        if (savedTheme && isMounted.current) {
+          setIsDarkMode(savedTheme === 'dark');
         }
-      }, REFRESH_INTERVAL);
-    } catch (error) {
-      console.error('Initialization error:', error);
-      setError('Failed to initialize app');
-    }
-  };
-
-  const loadThemePreference = async () => {
-    try {
-      const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
-      if (savedTheme && isMounted.current) {
-        setIsDarkMode(savedTheme === 'dark');
+      } catch (error) {
+        console.error('Theme loading error:', error);
       }
-    } catch (error) {
-      console.error('Theme loading error:', error);
-    }
-  };
+    };
 
-  const loadInitialData = async () => {
-    try {
-      await Promise.all([
-        loadAchievements(true),
-        loadUserStats(),
-      ]);
-    } catch (error) {
-      console.error('Initial data loading error:', error);
-      setError('Failed to load initial data');
-    }
-  };
-
-  const loadUserStats = async () => {
-    try {
-      const savedStats = await AsyncStorage.getItem(STORAGE_KEYS.STATS);
-      if (savedStats && isMounted.current) {
-        setStats(JSON.parse(savedStats));
+    const loadInitialData = async () => {
+      try {
+        await Promise.all([
+          loadAchievements(true),
+          loadUserStats(),
+        ]);
+      } catch (error) {
+        console.error('Initial data loading error:', error);
+        setError('Failed to load initial data');
       }
-    } catch (error) {
-      console.error('Stats loading error:', error);
-      setError('Failed to load user stats');
-    }
-  };
+    };
 
-  const animateItems = useCallback((items) => {
-    const animations = items.map((item, index) => {
-      if (!itemAnimations.has(item.id)) {
-        itemAnimations.set(item.id, new Animated.Value(0));
+    const loadUserStats = async () => {
+      try {
+        const savedStats = await AsyncStorage.getItem(STORAGE_KEYS.STATS);
+        if (savedStats && isMounted.current) {
+          setStats(JSON.parse(savedStats));
+        }
+      } catch (error) {
+        console.error('Stats loading error:', error);
+        setError('Failed to load user stats');
       }
-      return Animated.spring(itemAnimations.get(item.id), {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        delay: index * ANIMATION_DELAY,
-        useNativeDriver: true,
+    };
+
+    const animateItems = useCallback((items) => {
+      const animations = items.map((item, index) => {
+        if (!itemAnimations.has(item.id)) {
+          itemAnimations.set(item.id, new Animated.Value(0));
+        }
+        return Animated.spring(itemAnimations.get(item.id), {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          delay: index * ANIMATION_DELAY,
+          useNativeDriver: true,
+        });
       });
-    });
 
-    Animated.stagger(ANIMATION_DELAY, animations).start();
-  }, []);
+      Animated.stagger(ANIMATION_DELAY, animations).start();
+    }, []);
 
-  const loadAchievements = async (refresh = false) => {
-    try {
-      if (refresh) {
-        setError(null);
+    const loadAchievements = async (refresh = false) => {
+      try {
+        if (refresh) {
+          setError(null);
+        }
+        setLoading(true);
+
+        // Simulated API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        if (isMounted.current) {
+          setAchievements(MOCK_ACHIEVEMENTS);
+          animateItems(MOCK_ACHIEVEMENTS);
+
+          // Update stats
+          const completed = MOCK_ACHIEVEMENTS.filter(a => a.completed).length;
+          const totalPoints = MOCK_ACHIEVEMENTS.reduce((sum, a) =>
+            sum + (a.completed ? a.points : 0), 0);
+          const newStats = {
+            completed,
+            total: MOCK_ACHIEVEMENTS.length,
+            points: totalPoints,
+          };
+          setStats(newStats);
+          await AsyncStorage.setItem(STORAGE_KEYS.STATS, JSON.stringify(newStats));
+        }
+
+      } catch (error) {
+        console.error('Achievements loading error:', error);
+        setError('Failed to load achievements');
+        Alert.alert('Error', 'Failed to load achievements. Please try again.');
+      } finally {
+        if (isMounted.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
-      setLoading(true);
+    };
 
-      // Simulated API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    const handleRefresh = useCallback(() => {
+      setRefreshing(true);
+      loadAchievements(true);
+    }, []);
 
-      if (isMounted.current) {
-        setAchievements(MOCK_ACHIEVEMENTS);
-        animateItems(MOCK_ACHIEVEMENTS);
-
-        // Update stats
-        const completed = MOCK_ACHIEVEMENTS.filter(a => a.completed).length;
-        const totalPoints = MOCK_ACHIEVEMENTS.reduce((sum, a) =>
-          sum + (a.completed ? a.points : 0), 0);
-        const newStats = {
-          completed,
-          total: MOCK_ACHIEVEMENTS.length,
-          points: totalPoints,
-        };
-        setStats(newStats);
-        await AsyncStorage.setItem(STORAGE_KEYS.STATS, JSON.stringify(newStats));
-      }
-
-    } catch (error) {
-      console.error('Achievements loading error:', error);
-      setError('Failed to load achievements');
-      Alert.alert('Error', 'Failed to load achievements. Please try again.');
-    } finally {
-      if (isMounted.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-  };
-
-  const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadAchievements(true);
-  }, []);
-
-  const handleRedeem = useCallback(async (achievement) => {
-    if (!achievement.completed) {
-      Alert.alert('Not Available', 'Complete this achievement to claim your reward!');
-      return;
-    }
-
-    try {
-      // Simulated API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      Alert.alert(
-        'Success!',
-        `You've claimed ${achievement.points} points for "${achievement.title}"!`,
-        [{ text: 'OK' }]
-      );
-
-      const animation = itemAnimations.get(achievement.id);
-      if (animation) {
-        Animated.sequence([
-          Animated.spring(animation, {
-            toValue: 0.95,
-            tension: 100,
-            friction: 5,
-            useNativeDriver: true,
-          }),
-          Animated.spring(animation, {
-            toValue: 1,
-            tension: 100,
-            friction: 5,
-            useNativeDriver: true,
-          }),
-        ]).start();
+    const handleRedeem = useCallback(async (achievement) => {
+      if (!achievement.completed) {
+        Alert.alert('Not Available', 'Complete this achievement to claim your reward!');
+        return;
       }
 
-    } catch (error) {
-      console.error('Achievement redemption error:', error);
-      Alert.alert('Error', 'Failed to redeem achievement. Please try again.');
-    }
-  }, []);
+      try {
+        // Simulated API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-  const renderItem = useCallback(({ item }) => {
-    const scale = itemAnimations.get(item.id) || new Animated.Value(1);
+        Alert.alert(
+          'Success!',
+          `You've claimed ${achievement.points} points for "${achievement.title}"!`,
+          [{ text: 'OK' }]
+        );
 
-    return (
-      <Animated.View
-        style={{
-          transform: [{ scale }],
-          opacity: scale,
-        }}
-      >
-        <AchievementItem
-          {...item}
-          onRedeem={() => handleRedeem(item)}
-          style={{
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-          }}
-        />
-      </Animated.View>
-    );
-  }, [colors, handleRedeem]);
-
-  const renderHeader = useCallback(() => (
-    <Animated.View
-      style={[
-        styles.statsContainer,
-        {
-          backgroundColor: colors.card,
-          transform: [{
-            translateY: scrollY.interpolate({
-              inputRange: [-100, 0, 100],
-              outputRange: [50, 0, -50],
-              extrapolate: 'clamp',
+        const animation = itemAnimations.get(achievement.id);
+        if (animation) {
+          Animated.sequence([
+            Animated.spring(animation, {
+              toValue: 0.95,
+              tension: 100,
+              friction: 5,
+              useNativeDriver: true,
             }),
-          }],
-        },
-      ]}
-    >
-      <View style={styles.statItem}>
-        <FontAwesome name="trophy" size={24} color={colors.tint} />
-        <ThemedText style={styles.statValue}>{stats.completed}</ThemedText>
-        <ThemedText style={styles.statLabel}>Completed</ThemedText>
-      </View>
-      <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-      <View style={styles.statItem}>
-        <FontAwesome name="star" size={24} color={colors.tint} />
-        <ThemedText style={styles.statValue}>{stats.points}</ThemedText>
-        <ThemedText style={styles.statLabel}>Points</ThemedText>
-      </View>
-      <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-      <View style={styles.statItem}>
-        <FontAwesome name="tasks" size={24} color={colors.tint} />
-        <ThemedText style={styles.statValue}>
-          {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}%
-        </ThemedText>
-        <ThemedText style={styles.statLabel}>Progress</ThemedText>
-      </View>
-    </Animated.View>
-  ), [colors, stats, scrollY]);
+            Animated.spring(animation, {
+              toValue: 1,
+              tension: 100,
+              friction: 5,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        }
+
+      } catch (error) {
+        console.error('Achievement redemption error:', error);
+        Alert.alert('Error', 'Failed to redeem achievement. Please try again.');
+      }
+    }, []);
+
+    const renderItem = useCallback(({ item }) => {
+      const scale = itemAnimations.get(item.id) || new Animated.Value(1);
+
+      return (
+        <Animated.View
+          style={{
+            transform: [{ scale }],
+            opacity: scale,
+          }}
+        >
+          <AchievementItem
+            {...item}
+            onRedeem={() => handleRedeem(item)}
+            style={{
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            }}
+            textColor={colors.text}
+            accentColor={colors.tint}
+          />
+        </Animated.View>
+      );
+    }, [colors, handleRedeem])
+    const renderHeader = useCallback(() => (
+      <Animated.View
+        style={[
+          styles.statsContainer,
+          {
+            backgroundColor: colors.card,
+            transform: [{
+              translateY: scrollY.interpolate({
+                inputRange: [-100, 0, 100],
+                outputRange: [50, 0, -50],
+                extrapolate: 'clamp',
+              }),
+            }],
+          },
+        ]}
+      >
+        <View style={styles.statItem}>
+          <FontAwesome name="trophy" size={24} color={colors.tint} />
+          <ThemedText style={[styles.statValue, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
+            {stats.completed}
+          </ThemedText>
+          <ThemedText style={[styles.statLabel, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
+            Completed
+          </ThemedText>
+        </View>
+        <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+        <View style={styles.statItem}>
+          <FontAwesome name="star" size={24} color={colors.tint} />
+          <ThemedText style={[styles.statValue, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
+            {stats.points}
+          </ThemedText>
+          <ThemedText style={[styles.statLabel, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
+            Points
+          </ThemedText>
+        </View>
+        <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+        <View style={styles.statItem}>
+          <FontAwesome name="tasks" size={24} color={colors.tint} />
+          <ThemedText style={[styles.statValue, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
+            {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}%
+          </ThemedText>
+          <ThemedText style={[styles.statLabel, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
+            Progress
+          </ThemedText>
+        </View>
+      </Animated.View>
+    ), [colors, stats, scrollY, isDarkMode]);
 
   const renderEmpty = useCallback(() => (
     <View style={styles.emptyContainer}>
       <FontAwesome name="trophy" size={48} color={colors.icon} />
-      <ThemedText style={styles.emptyText}>
+      <ThemedText style={[styles.emptyText, { color: colors.textSecondary }]}>
         {error || 'No achievements available'}
       </ThemedText>
     </View>
   ), [colors, error]);
 
   const renderLoading = useCallback(() => (
-    <View style={styles.loadingContainer}>
+    <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
       <ActivityIndicator size="large" color={colors.tint} />
-      <ThemedText style={styles.loadingText}>Loading achievements...</ThemedText>
+      <ThemedText style={[styles.loadingText, { color: colors.text }]}>
+        Loading achievements...
+      </ThemedText>
     </View>
   ), [colors]);
 
@@ -354,11 +392,13 @@ const Achievements = () => {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
       <Header
         title="Achievements"
         onProfilePress={() => console.log('Profile icon pressed')}
         style={{ backgroundColor: colors.background }}
+        textColor={colors.text}
+        iconColor={colors.tint}
       />
 
       <AnimatedFlatList
@@ -370,6 +410,7 @@ const Achievements = () => {
         contentContainerStyle={[
           styles.listContainer,
           achievements.length === 0 && styles.emptyList,
+          { backgroundColor: colors.background }
         ]}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -382,9 +423,10 @@ const Achievements = () => {
             onRefresh={handleRefresh}
             tintColor={colors.tint}
             colors={[colors.tint]}
+            progressBackgroundColor={colors.card}
           />
         }
-        ListFooterComponent={<View style={styles.listFooter} />}
+        ListFooterComponent={<View style={[styles.listFooter, { backgroundColor: colors.background }]} />}
         removeClippedSubviews={Platform.OS !== 'web'}
         maxToRenderPerBatch={5}
         windowSize={5}
