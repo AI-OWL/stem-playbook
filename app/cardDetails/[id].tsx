@@ -43,7 +43,7 @@ export default function CardDetailsScreen() {
         <Text style={styles.description}>{cardData.description}</Text>
 
         {/* Redeem Button at the Bottom */}
-        <TouchableOpacity style={styles.redeemButton} onPress={() => alert("Points Redeemed!")}>
+        <TouchableOpacity style={styles.redeemButton} onPress={() => alert("Redeem Points")}>
           <Text style={styles.redeemButtonText}>Redeem Points</Text>
         </TouchableOpacity>
       </ScrollView>

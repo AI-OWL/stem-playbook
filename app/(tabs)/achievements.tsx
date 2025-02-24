@@ -12,7 +12,7 @@ const achievementsData = [
 const Achievements = () => {
   return (
     <View style={styles.container}>
-      <Header title="Achievements" onProfilePress={() => console.log('Profile icon pressed')} />
+      <Header title="Achievements" />
       <FlatList
         data={achievementsData}
         keyExtractor={(item) => item.id}

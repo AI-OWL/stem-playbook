@@ -1,52 +1,43 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { StyleSheet, Text, View, SectionList } from "react-native";
 import Header from "@/components/Header";
 import StemCard from "@/components/StemCard";
 import CardModal from "@/components/CardModal";
-
-const categories = [
-  {
-    title: "Science",
-    data: [
-      { id: "1", imageUrl: "https://picsum.photos/200/300?grayscale" },
-      { id: "2" }, // Missing card (question mark placeholder)
-      { id: "3", imageUrl: "https://picsum.photos/id/870/200/300?grayscale&blur=2" },
-    ],
-  },
-  {
-    title: "Engineering",
-    data: [
-      { id: "4", imageUrl: "https://example.com/card3.jpg" },
-      { id: "5" }, // Missing card (question mark placeholder)
-      { id: "6", imageUrl: "https://example.com/card4.jpg" },
-      { id: "7" }, // Missing card
-    ],
-  },
-  {
-    title: "Mathematics",
-    data: [
-      { id: "8", imageUrl: "https://example.com/card5.jpg" },
-      { id: "9", imageUrl: "https://example.com/card6.jpg" },
-    ],
-  },
-];
+import { getAllCards } from "../utils/apiService";
+import { CardGroup } from "@/.expo/types/CardGroup";
 
 export default function HomeScreen() {
+  const [allCards, setAllCards] = useState<CardGroup[]>([]); // Use state for re-rendering
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedCardImageUrl, setSelectedCardImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    getAllCards()
+      .then((cards) => {
+        console.log("Fetched cards:", JSON.stringify(cards, null, 2)); // Log properly formatted data
+        if (Array.isArray(cards)) {
+          setAllCards(cards); // Update state correctly
+        } else {
+          console.error("Error: API response is not an array:", cards);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to fetch cards:", error);
+      });
+  }, []); // Runs once when component mounts
 
   return (
     <View style={styles.container}>
       <Header title="Wallet" />
 
       <SectionList
-        sections={categories}
+        sections={allCards}
         keyExtractor={(item) => item.id}
-        renderItem={() => null} // No need to render items separately since we handle them in the section header
-        renderSectionHeader={({ section: { title, data } }) => (
+        renderItem={() => null}
+        renderSectionHeader={({ section: { category, data } }) => (
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeaderContainer}>
-              <Text style={styles.sectionHeader}>{title}</Text>
+              <Text style={styles.sectionHeader}>{category}</Text>
             </View>
             <View style={styles.grid}>
               {data.map((card) => (
@@ -55,8 +46,8 @@ export default function HomeScreen() {
                   imageUrl={card.imageUrl}
                   style={styles.card}
                   onPress={() => {
-                    setSelectedCardId(card.id); // Store card ID
-                    setSelectedCardImageUrl(card.imageUrl || null); // Store image URL
+                    setSelectedCardId(card.id);
+                    setSelectedCardImageUrl(card.imageUrl || null);
                   }}
                 />
               ))}
@@ -72,7 +63,7 @@ export default function HomeScreen() {
       <CardModal
         visible={!!selectedCardId}
         imageUrl={selectedCardImageUrl || undefined}
-        cardId={selectedCardId || undefined} // ✅ Pass the card ID to CardModal
+        cardId={selectedCardId || undefined}
         onClose={() => {
           setSelectedCardId(null);
           setSelectedCardImageUrl(null);
@@ -118,7 +109,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   card: {
-    width: "48%", // Two cards per row with spacing
+    width: "48%",
     marginBottom: 10,
   },
 });

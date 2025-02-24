@@ -14,7 +14,7 @@ const LeaderBoard = () => {
 
   return (
     <View style={styles.container}>
-      <Header title="Leaderboard" onProfilePress={() => console.log('Profile icon pressed')} />
+      <Header title="Leaderboard" />
 
       <View style={styles.header}>
         <ThemedText type="title" style={styles.headerText}>Your Points:</ThemedText>

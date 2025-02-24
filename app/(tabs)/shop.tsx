@@ -33,7 +33,7 @@ const testItems = [
 const Shop = () => {
   return (
     <View style={styles.container}>
-      <Header title="Store" onProfilePress={() => console.log('Profile icon pressed')} />
+      <Header title="Store" />
 
       <FlatList
         data={testItems}
