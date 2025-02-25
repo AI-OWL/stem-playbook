@@ -12,18 +12,18 @@ export default function HomeScreen() {
   const [selectedCardImageUrl, setSelectedCardImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    getAllCards()
-      .then((cards) => {
-        console.log("Fetched cards:", JSON.stringify(cards, null, 2)); // Log properly formatted data
-        if (Array.isArray(cards)) {
-          setAllCards(cards); // Update state correctly
-        } else {
-          console.error("Error: API response is not an array:", cards);
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to fetch cards:", error);
-      });
+    // getAllCards()
+    //   .then((cards) => {
+    //     console.log("Fetched cards:", JSON.stringify(cards, null, 2)); // Log properly formatted data
+    //     if (Array.isArray(cards)) {
+    //       setAllCards(cards); // Update state correctly
+    //     } else {
+    //       console.error("Error: API response is not an array:", cards);
+    //     }
+    //   })
+    //   .catch((error) => {
+    //     console.error("Failed to fetch cards:", error);
+    //   });
   }, []); // Runs once when component mounts
 
   return (
