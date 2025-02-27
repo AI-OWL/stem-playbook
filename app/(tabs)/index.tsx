@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import {
   StyleSheet,
   View,
@@ -24,30 +30,26 @@ const ANIMATION_DURATION = 300;
 const GRID_GAP = 12;
 const CARD_WIDTH_PERCENTAGE = 48;
 const STORAGE_KEYS = {
-  THEME: 'theme',
-  CATEGORIES: 'categories',
+  THEME: "theme",
+  CATEGORIES: "categories",
 };
 
-// Mock data remains the same
+// Mock data with correct image paths using require
 const MOCK_CATEGORIES = [
   {
     title: "Science",
     data: [
       {
         id: "s1",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Biology Basics",
-        description: "Introduction to cellular structures",
-        rarity: "common",
+        imageUrl: require("../../assets/cards/Science/Layla _Joseph FRONT.png"),
         collected: true,
+        rarity: "epic"
       },
       {
         id: "s2",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Chemistry Lab",
-        description: "Advanced chemical reactions",
-        rarity: "rare",
-        collected: false,
+        imageUrl: require("../../assets/cards/Science/VICTORIA EL-HAYEK front.png"),
+        collected: true,
+        rarity: "rare"
       },
     ],
   },
@@ -56,19 +58,15 @@ const MOCK_CATEGORIES = [
     data: [
       {
         id: "t1",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Web Development",
-        description: "Frontend and backend basics",
-        rarity: "common",
+        imageUrl: require("../../assets/cards/Technology/Leon Wilson front.png"),
         collected: true,
+        rarity: "common"
       },
       {
         id: "t2",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Mobile Apps",
-        description: "Cross-platform development",
-        rarity: "epic",
+        imageUrl: require("../../assets/cards/Default.png"),
         collected: false,
+        rarity: "common"
       },
     ],
   },
@@ -77,19 +75,15 @@ const MOCK_CATEGORIES = [
     data: [
       {
         id: "e1",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Mechanical Systems",
-        description: "Basic mechanical principles",
-        rarity: "rare",
+        imageUrl: require("../../assets/cards/Engineering/aayliahbrownfront.png"),
         collected: true,
+        rarity: "rare"
       },
       {
         id: "e2",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Electrical Circuits",
-        description: "Circuit design fundamentals",
-        rarity: "common",
-        collected: false,
+        imageUrl: require("../../assets/cards/Engineering/grady burrows front.png"),
+        collected: true,
+        rarity: "common"
       },
     ],
   },
@@ -98,31 +92,29 @@ const MOCK_CATEGORIES = [
     data: [
       {
         id: "m1",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Calculus",
-        description: "Differential equations",
-        rarity: "epic",
-        collected: true,
+        imageUrl: require("../../assets/cards/Default.png"),
+        collected: false,
+        rarity: "common"
       },
       {
         id: "m2",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Linear Algebra",
-        description: "Matrix operations",
-        rarity: "rare",
+        imageUrl: require("../../assets/cards/Default.png"),
         collected: false,
+        rarity: "common"
       },
     ],
   },
 ];
 
-
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 
 export default function Index() {
   const systemColorScheme = useColorScheme();
-  const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === 'dark');
-  const colors = useMemo(() => Colors[isDarkMode ? 'dark' : 'light'], [isDarkMode]);
+  const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === "dark");
+  const colors = useMemo(
+    () => Colors[isDarkMode ? "dark" : "light"],
+    [isDarkMode],
+  );
 
   const [categories, setCategories] = useState([]);
   const [selectedCardId, setSelectedCardId] = useState(null);
@@ -133,8 +125,9 @@ export default function Index() {
 
   const cardAnimations = useRef(new Map()).current;
   const scrollY = useRef(new Animated.Value(0)).current;
-  const refreshInterval = useRef(null);
+  const refreshInterval = useRef<NodeJS.Timeout>();
   const isMounted = useRef(true);
+  const REFRESH_INTERVAL = 15000;
 
   // Enhanced theme management
   useEffect(() => {
@@ -142,13 +135,13 @@ export default function Index() {
       try {
         const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
         if (savedTheme !== null) {
-          setIsDarkMode(savedTheme === 'dark');
+          setIsDarkMode(savedTheme === "dark");
         } else {
-          setIsDarkMode(systemColorScheme === 'dark');
+          setIsDarkMode(systemColorScheme === "dark");
           await AsyncStorage.setItem(STORAGE_KEYS.THEME, systemColorScheme);
         }
       } catch (error) {
-        console.error('Theme check error:', error);
+        console.error("Theme check error:", error);
       }
     };
 
@@ -157,123 +150,144 @@ export default function Index() {
 
     return () => clearInterval(themeInterval);
   }, [systemColorScheme]);
-    // Theme toggle handler
-    const toggleTheme = useCallback(async () => {
-      try {
-        const newTheme = !isDarkMode;
-        setIsDarkMode(newTheme);
-        await AsyncStorage.setItem(STORAGE_KEYS.THEME, newTheme ? 'dark' : 'light');
-      } catch (error) {
-        console.error('Theme toggle error:', error);
-      }
-    }, [isDarkMode]);
+  // Theme toggle handler
+  const toggleTheme = useCallback(async () => {
+    try {
+      const newTheme = !isDarkMode;
+      setIsDarkMode(newTheme);
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.THEME,
+        newTheme ? "dark" : "light",
+      );
+    } catch (error) {
+      console.error("Theme toggle error:", error);
+    }
+  }, [isDarkMode]);
 
     useEffect(() => {
+      isMounted.current = true;
+
       const initializeApp = async () => {
         try {
+          if (isMounted.current) {
+            setError(null);
+            setRefreshing(true);
+          }
+
           await loadInitialData();
 
-          refreshInterval.current = setInterval(() => {
-            if (!refreshing && isMounted.current) {
-              loadCategories(true);
-            }
-          }, REFRESH_INTERVAL);
-        } catch (error) {
-          console.error('Init error:', error);
           if (isMounted.current) {
-            setError('Failed to initialize app');
+            refreshInterval.current = setInterval(() => {
+              if (!refreshing && isMounted.current) {
+                loadCategories(true);
+              }
+            }, REFRESH_INTERVAL);
+            setRefreshing(false);
+          }
+        } catch (error) {
+          console.error("Init error:", error);
+          if (isMounted.current) {
+            setError("Failed to initialize app");
+            setRefreshing(false);
           }
         }
       };
 
       initializeApp();
 
+      // Cleanup function
       return () => {
         isMounted.current = false;
         if (refreshInterval.current) {
           clearInterval(refreshInterval.current);
+          refreshInterval.current = undefined;
         }
-        cardAnimations.clear();
+        setSelectedCardId(null);
+        setSelectedCardImageUrl(null);
+        setRefreshing(false);
       };
     }, []);
 
-    const loadInitialData = async () => {
-      try {
-        await loadCategories(true);
-      } catch (error) {
-        console.error('Initial load error:', error);
-        if (isMounted.current) {
-          setError('Failed to load initial data');
-        }
+  const loadInitialData = async () => {
+    try {
+      await loadCategories(true);
+    } catch (error) {
+      console.error("Initial load error:", error);
+      if (isMounted.current) {
+        setError("Failed to load initial data");
       }
-    };
+    }
+  };
 
-    const animateCards = useCallback((newCategories) => {
-      const animations = [];
+  const animateCards = useCallback((newCategories) => {
+    const animations = [];
 
-      newCategories.forEach(category => {
-        category.data.forEach(card => {
-          if (!cardAnimations.has(card.id)) {
-            const animation = new Animated.Value(0);
-            cardAnimations.set(card.id, animation);
-            animations.push(animation);
-          }
-        });
+    newCategories.forEach((category) => {
+      category.data.forEach((card) => {
+        if (!cardAnimations.has(card.id)) {
+          const animation = new Animated.Value(0);
+          cardAnimations.set(card.id, animation);
+          animations.push(animation);
+        }
       });
+    });
 
-      const staggeredAnimations = animations.map((animation, index) =>
-        Animated.sequence([
-          Animated.delay(index * 50),
-          Animated.spring(animation, {
-            toValue: 1,
-            tension: 50,
-            friction: 7,
-            useNativeDriver: true,
-          })
-        ])
-      );
+    const staggeredAnimations = animations.map((animation, index) =>
+      Animated.sequence([
+        Animated.delay(index * 50),
+        Animated.spring(animation, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
 
-      Animated.parallel(staggeredAnimations).start();
-    }, []);
+    Animated.parallel(staggeredAnimations).start();
+  }, []);
 
-    const loadCategories = async (refresh = false) => {
-      try {
-        if (refresh && isMounted.current) {
-          setError(null);
-        }
-        setLoading(true);
-
-        // Simulated API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        if (isMounted.current) {
-          setCategories(MOCK_CATEGORIES);
-          animateCards(MOCK_CATEGORIES);
-          await AsyncStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(MOCK_CATEGORIES));
-        }
-
-      } catch (error) {
-        console.error('Load categories error:', error);
-        if (isMounted.current) {
-          setError('Failed to load categories');
-          Alert.alert('Error', 'Failed to load categories. Please try again.');
-        }
-      } finally {
-        if (isMounted.current) {
-          setLoading(false);
-          setRefreshing(false);
-        }
+  const loadCategories = async (refresh = false) => {
+    try {
+      if (refresh && isMounted.current) {
+        setError(null);
       }
-    };
+      setLoading(true);
 
-    const handleRefresh = useCallback(() => {
-      setRefreshing(true);
-      loadCategories(true);
-    }, []);
+      // Simulated API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      if (isMounted.current) {
+        setCategories(MOCK_CATEGORIES);
+        animateCards(MOCK_CATEGORIES);
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.CATEGORIES,
+          JSON.stringify(MOCK_CATEGORIES),
+        );
+      }
+    } catch (error) {
+      console.error("Load categories error:", error);
+      if (isMounted.current) {
+        setError("Failed to load categories");
+        Alert.alert("Error", "Failed to load categories. Please try again.");
+      }
+    } finally {
+      if (isMounted.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  };
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadCategories(true);
+  }, []);
 
     const handleCardPress = useCallback((card) => {
       setSelectedCardId(card.id);
-      setSelectedCardImageUrl(card.imageUrl || null);
+      // Pass the entire imageUrl object since it's from require()
+      setSelectedCardImageUrl(card.imageUrl);
 
       const animation = cardAnimations.get(card.id);
       if (animation) {
@@ -294,137 +308,164 @@ export default function Index() {
       }
     }, []);
 
-    const renderCard = useCallback(({ item: card }) => {
-      const scale = cardAnimations.get(card.id) || new Animated.Value(1);
+    const renderCard = useCallback(
+      ({ item: card }) => {
+        const scale = cardAnimations.get(card.id) || new Animated.Value(1);
 
-      return (
-        <Animated.View
-          key={card.id}
+        return (
+          <Animated.View
+            key={card.id}
+            style={[
+              styles.cardContainer,
+              {
+                transform: [{ scale }],
+                opacity: scale,
+              },
+            ]}
+          >
+            <StemCard
+              imageUrl={card.imageUrl}
+              collected={card.collected}
+              rarity={card.rarity}
+              onPress={() => handleCardPress(card)}
+            />
+          </Animated.View>
+        );
+      },
+      [handleCardPress]
+    );
+    const renderSectionHeader = useCallback(
+      ({ section: { title, data } }) => {
+        const headerTranslateY = scrollY.interpolate({
+          inputRange: [-100, 0, 100],
+          outputRange: [50, 0, -50],
+          extrapolate: "clamp",
+        });
+
+        const collectedCount = data.filter((card) => card.collected).length;
+
+        return (
+          <Animated.View
+            style={[
+              styles.sectionContainer,
+              {
+                transform: [{ translateY: headerTranslateY }],
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.sectionHeaderContainer,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <ThemedText
+                style={[
+                  styles.sectionHeader,
+                  { color: isDarkMode ? "#FFFFFF" : colors.text },
+                ]}
+              >
+                {title}
+              </ThemedText>
+              <ThemedText
+                style={[
+                  styles.sectionCount,
+                  {
+                    color: isDarkMode
+                      ? "rgba(255, 255, 255, 0.7)"
+                      : colors.textSecondary,
+                  },
+                ]}
+              >
+                {collectedCount}/{data.length} Collected
+              </ThemedText>
+            </View>
+            <View style={styles.grid}>
+              {data.map((card) => (
+                <View key={card.id} style={styles.cardWrapper}>
+                  <StemCard
+                    imageUrl={card.imageUrl}
+                    collected={card.collected}
+                    rarity={card.rarity}
+                    onPress={() => handleCardPress(card)}
+                  />
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+        );
+      },
+      [colors, handleCardPress, scrollY, isDarkMode],
+    );
+
+  const renderEmpty = useCallback(
+    () => (
+      <View
+        style={[styles.emptyContainer, { backgroundColor: colors.background }]}
+      >
+        <FontAwesome
+          name="folder-open"
+          size={48}
+          color={isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.icon}
+        />
+        <ThemedText
           style={[
-            styles.cardContainer,
+            styles.emptyText,
             {
-              transform: [{ scale }],
-              opacity: scale,
+              color: isDarkMode
+                ? "rgba(255, 255, 255, 0.7)"
+                : colors.textSecondary,
             },
           ]}
         >
-          <StemCard
-            imageUrl={card.imageUrl}
-            title={card.title}
-            description={card.description}
-            rarity={card.rarity}
-            collected={card.collected}
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.cardBackground,
-                borderColor: colors.border,
-              }
-            ]}
-            textColor={isDarkMode ? '#FFFFFF' : colors.text}
-            secondaryTextColor={isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary}
-            onPress={() => handleCardPress(card)}
-          />
-        </Animated.View>
-      );
-    }, [colors, handleCardPress, isDarkMode]);
-  const renderSectionHeader = useCallback(({ section: { title, data } }) => {
-    const headerTranslateY = scrollY.interpolate({
-      inputRange: [-100, 0, 100],
-      outputRange: [50, 0, -50],
-      extrapolate: 'clamp',
-    });
+          {error || "No cards available"}
+        </ThemedText>
+      </View>
+    ),
+    [colors, error, isDarkMode],
+  );
 
-    const collectedCount = data.filter(card => card.collected).length;
-
-    return (
-      <Animated.View
+  const renderLoading = useCallback(
+    () => (
+      <View
         style={[
-          styles.sectionContainer,
-          {
-            transform: [{ translateY: headerTranslateY }],
-          },
+          styles.loadingContainer,
+          { backgroundColor: colors.background },
         ]}
       >
-        <View style={[
-          styles.sectionHeaderContainer,
-          {
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-          }
-        ]}>
-          <ThemedText style={[
-            styles.sectionHeader,
-            { color: isDarkMode ? '#FFFFFF' : colors.text }
-          ]}>
-            {title}
-          </ThemedText>
-          <ThemedText style={[
-            styles.sectionCount,
-            { color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary }
-          ]}>
-            {collectedCount}/{data.length} Collected
-          </ThemedText>
-        </View>
-        <View style={styles.grid}>
-          {data.map((card) => (
-            <View key={card.id}>
-              {renderCard({ item: card })}
-            </View>
-          ))}
-        </View>
-      </Animated.View>
-    );
-  }, [colors, renderCard, scrollY, isDarkMode]);
-
-  const renderEmpty = useCallback(() => (
-    <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
-      <FontAwesome
-        name="folder-open"
-        size={48}
-        color={isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.icon}
-      />
-      <ThemedText style={[
-        styles.emptyText,
-        { color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary }
-      ]}>
-        {error || 'No cards available'}
-      </ThemedText>
-    </View>
-  ), [colors, error, isDarkMode]);
-
-  const renderLoading = useCallback(() => (
-    <View style={[
-      styles.loadingContainer,
-      { backgroundColor: colors.background }
-    ]}>
-      <ActivityIndicator
-        size="large"
-        color={isDarkMode ? '#FFFFFF' : colors.tint}
-      />
-      <ThemedText style={[
-        styles.loadingText,
-        { color: isDarkMode ? '#FFFFFF' : colors.text }
-      ]}>
-        Loading cards...
-      </ThemedText>
-    </View>
-  ), [colors, isDarkMode]);
+        <ActivityIndicator
+          size="large"
+          color={isDarkMode ? "#FFFFFF" : colors.tint}
+        />
+        <ThemedText
+          style={[
+            styles.loadingText,
+            { color: isDarkMode ? "#FFFFFF" : colors.text },
+          ]}
+        >
+          Loading cards...
+        </ThemedText>
+      </View>
+    ),
+    [colors, isDarkMode],
+  );
 
   if (loading && !refreshing) {
     return renderLoading();
   }
 
   return (
-    <ThemedView style={[
-      styles.container,
-      { backgroundColor: colors.background }
-    ]}>
+    <ThemedView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <Header
         title="Wallet"
         style={{ backgroundColor: colors.background }}
-        textColor={isDarkMode ? '#FFFFFF' : colors.text}
-        iconColor={isDarkMode ? '#FFFFFF' : colors.tint}
+        textColor={isDarkMode ? "#FFFFFF" : colors.text}
+        iconColor={isDarkMode ? "#FFFFFF" : colors.tint}
       />
 
       <AnimatedSectionList
@@ -436,31 +477,33 @@ export default function Index() {
         contentContainerStyle={[
           styles.listContent,
           categories.length === 0 && styles.emptyList,
-          { backgroundColor: colors.background }
+          { backgroundColor: colors.background },
         ]}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
+          { useNativeDriver: true },
         )}
         scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={isDarkMode ? '#FFFFFF' : colors.tint}
-            colors={[isDarkMode ? '#FFFFFF' : colors.tint]}
+            tintColor={isDarkMode ? "#FFFFFF" : colors.tint}
+            colors={[isDarkMode ? "#FFFFFF" : colors.tint]}
             progressBackgroundColor={colors.card}
           />
         }
-        ListHeaderComponent={<View style={[
-          styles.listHeader,
-          { backgroundColor: colors.background }
-        ]} />}
-        ListFooterComponent={<View style={[
-          styles.listFooter,
-          { backgroundColor: colors.background }
-        ]} />}
-        removeClippedSubviews={Platform.OS !== 'web'}
+        ListHeaderComponent={
+          <View
+            style={[styles.listHeader, { backgroundColor: colors.background }]}
+          />
+        }
+        ListFooterComponent={
+          <View
+            style={[styles.listFooter, { backgroundColor: colors.background }]}
+          />
+        }
+        removeClippedSubviews={Platform.OS !== "web"}
         maxToRenderPerBatch={5}
         windowSize={5}
         initialNumToRender={10}
@@ -468,16 +511,23 @@ export default function Index() {
         onScrollToIndexFailed={() => {}}
       />
 
-      <CardModal
-        visible={!!selectedCardId}
-        imageUrl={selectedCardImageUrl}
-        cardId={selectedCardId}
-        onClose={() => {
-          setSelectedCardId(null);
-          setSelectedCardImageUrl(null);
-        }}
-        isDarkMode={isDarkMode}
-      />
+        <CardModal
+          visible={!!selectedCardId}
+          imageUrl={selectedCardImageUrl}
+          cardId={selectedCardId}
+          onClose={() => {
+            setSelectedCardId(null);
+            setSelectedCardImageUrl(null);
+          }}
+          isDarkMode={isDarkMode}
+          collected={selectedCardId ?
+            MOCK_CATEGORIES.some(category =>
+              category.data.some(card =>
+                card.id === selectedCardId && card.collected
+              )
+            ) : false
+          }
+        />
     </ThemedView>
   );
 }
@@ -486,42 +536,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingHorizontal: 20, // Increased from 16 to 20 for more side padding
-  },
-  listHeader: {
-    height: 20,
-  },
-  listFooter: {
-    height: 50,
-  },
-  emptyList: {
-    flex: 1,
-    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 20,
   },
   sectionContainer: {
-    marginBottom: 24, // Increased from 20 to 24 for better section spacing
-    paddingHorizontal: 12, // Added padding to prevent cards touching edges
+    marginBottom: 24,
   },
   sectionHeaderContainer: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    marginBottom: 16, // Increased from 15 to 16 for consistency
+    marginBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
   },
   sectionHeader: {
     fontSize: 18,
@@ -535,28 +564,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: GRID_GAP,
-    paddingHorizontal: 4, // Added padding to prevent cards touching edges
+    paddingHorizontal: 8,
   },
-  cardContainer: {
-    width: `${CARD_WIDTH_PERCENTAGE}%`,
-    marginBottom: 12, // Added margin bottom for vertical spacing
-  },
-  card: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
+  cardWrapper: {
+    width: '48%', // This ensures two cards per row with proper spacing
+    marginBottom: 16, // Vertical spacing between cards
   },
   emptyContainer: {
     flex: 1,
@@ -579,4 +591,3 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
-

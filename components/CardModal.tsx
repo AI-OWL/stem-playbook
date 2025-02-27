@@ -1,118 +1,129 @@
-import React, { useState, useEffect, useRef } from "react";
+import React from 'react';
 import {
   Modal,
   View,
   Image,
-  TouchableWithoutFeedback,
-  Text,
+  TouchableOpacity,
   StyleSheet,
-  Animated,
-} from "react-native";
-import { useRouter } from "expo-router";
+  Dimensions,
+  SafeAreaView,
+  Platform,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const MODAL_WIDTH = SCREEN_WIDTH * 0.9;
+const MODAL_HEIGHT = MODAL_WIDTH * 1.5;
 
 interface CardModalProps {
   visible: boolean;
-  imageUrl?: string;
+  imageUrl: any;
+  cardId: string | null;
   onClose: () => void;
-  cardId?: string;
+  isDarkMode: boolean;
+  collected?: boolean;
 }
 
-const CardModal: React.FC<CardModalProps> = ({ visible, imageUrl, onClose, cardId }) => {
-  const [internalVisible, setInternalVisible] = useState(visible);
-  const [localImageUrl, setLocalImageUrl] = useState(imageUrl); // Preserve image
-  const opacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
+const CardModal: React.FC<CardModalProps> = ({
+  visible,
+  imageUrl,
+  cardId,
+  onClose,
+  isDarkMode,
+  collected = false,
+}) => {
   const router = useRouter();
 
-  useEffect(() => {
-    if (visible) {
-      setInternalVisible(true);
-      if (imageUrl) setLocalImageUrl(imageUrl); // Set image only when opening
-
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => {
-        setInternalVisible(false);
-        setLocalImageUrl(undefined); // ✅ Clear image only after fade-out
-      });
+  const handleCardPress = () => {
+    if (collected && cardId) {
+      onClose();
+      router.push(`/cardDetails/${cardId}`);
     }
-  }, [visible, imageUrl]);
-
-  if (!internalVisible) return null;
+  };
 
   return (
-    <Modal 
-      visible={internalVisible} 
-      transparent 
-      animationType="none" 
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <Animated.View 
-          style={[styles.overlay, { opacity }]}
-          pointerEvents={visible ? "auto" : "none"}
-        >
-          <TouchableWithoutFeedback
-            onPress={() => {
-              // Only navigate if the card is NOT a mystery card
-              if (cardId && imageUrl) {
-                onClose(); 
-                router.push(`/cardDetails/${cardId}`);
-              }
-            }}
+      <SafeAreaView style={styles.modalContainer}>
+        <View style={[
+          styles.modalContent,
+          { backgroundColor: isDarkMode ? '#1a1a1a' : '#ffffff' }
+        ]}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={onClose}
           >
-            <View style={styles.modalContent}>
-              {localImageUrl ? (
-                <Image source={{ uri: localImageUrl }} style={styles.image} />
-              ) : (
-                <View style={[styles.image, styles.placeholder]}>
-                  <Text style={styles.questionMark}>?</Text>
-                </View>
-              )}
-            </View>
-          </TouchableWithoutFeedback>
-        </Animated.View>
-      </TouchableWithoutFeedback>
+            <Ionicons
+              name="close-circle"
+              size={32}
+              color={isDarkMode ? '#ffffff' : '#000000'}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cardTouchable}
+            onPress={handleCardPress}
+            activeOpacity={collected ? 0.7 : 1}
+          >
+            <Image
+              source={imageUrl}
+              style={styles.modalImage}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
   },
   modalContent: {
-    width: 300,
-    height: 450,
-    backgroundColor: "#FFF",
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
+    width: MODAL_WIDTH,
+    height: MODAL_HEIGHT,
+    borderRadius: 20,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
   },
-  image: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "contain",
+  cardTouchable: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
   },
-  placeholder: {
-    backgroundColor: "#E0E0E0",
-    alignItems: "center",
-    justifyContent: "center",
+  modalImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
   },
-  questionMark: {
-    fontSize: 80,
-    fontWeight: "bold",
-    color: "#555",
+  closeButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 1,
+    padding: 8,
   },
 });
 
