@@ -1,6 +1,6 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack, useRouter, useSegments, Redirect } from 'expo-router';
+import { Stack, useSegments, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
@@ -15,6 +15,8 @@ export default function AppLayout() {
   const colorScheme = useColorScheme();
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const segments = useSegments();
+  const router = useRouter();
 
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
@@ -44,14 +46,18 @@ export default function AppLayout() {
     checkAuth();
   }, [loaded]);
 
+  useEffect(() => {
+    if (authChecked) {
+      // Wait for navigation to be ready before redirecting
+      if (!isAuthenticated && segments[0] !== "login") {
+        router.replace("/login");
+      }
+    }
+  }, [authChecked, isAuthenticated, segments]);
+
   // Show nothing until everything is loaded and auth is checked
   if (!loaded || !authChecked) {
     return null;
-  }
-
-  // If not authenticated, redirect to login
-  if (!isAuthenticated) {
-    return <Redirect href="/login" />;
   }
 
   return (
