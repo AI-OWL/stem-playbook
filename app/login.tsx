@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,8 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
-import { loginUser, signupUser, logoutUser } from "@/redux/authSlice";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { loginUser, signupUser } from "@/redux/authSlice";
 import { RootState, AppDispatch } from "@/redux/store";
 
 export default function AuthFlow() {
@@ -26,42 +27,22 @@ export default function AuthFlow() {
   // Redux auth state
   const { isAuthenticated, loading, error } = useSelector((state: RootState) => state.auth);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.replace("/(tabs)"); // Redirect to the main app
+  // When login is successful, update AsyncStorage and navigate
+  const handleLogin = async () => {
+    const result = await dispatch(loginUser(loginData));
+    if (loginUser.fulfilled.match(result)) {
+      await AsyncStorage.setItem("isAuthenticated", "true"); // Store auth state
+      router.replace("/(tabs)");
     }
-  }, [isAuthenticated]);
-
-  const handleLogin = () => {
-    dispatch(loginUser(loginData));
   };
 
-  const handleSignup = () => {
-    dispatch(signupUser(signupData));
+  const handleSignup = async () => {
+    const result = await dispatch(signupUser(signupData));
+    if (signupUser.fulfilled.match(result)) {
+      await AsyncStorage.setItem("isAuthenticated", "true"); // Store auth state
+      router.replace("/(tabs)");
+    }
   };
-
-  const handleLogout = () => {
-    dispatch(logoutUser());
-  };
-
-  if (isAuthenticated) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <Image source={require("../assets/images/adaptive-icon.png")} style={styles.logo} resizeMode="contain" />
-          <Text style={styles.title}>STEM Playbook</Text>
-
-          <TouchableOpacity style={[styles.button, styles.playButton]} onPress={() => router.replace("/(tabs)")}>
-            <Text style={[styles.buttonText, styles.playButtonText]}>Let's Play!</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -148,9 +129,5 @@ const styles = StyleSheet.create({
   input: { backgroundColor: "#ffffff", padding: 16, borderRadius: 8, marginBottom: 12, fontSize: 16 },
   button: { backgroundColor: "#1e40af", padding: 16, borderRadius: 8, alignItems: "center", marginTop: 8 },
   buttonText: { color: "#ffffff", fontSize: 16, fontWeight: "bold" },
-  playButton: { padding: 24, width: "100%", maxWidth: 400 },
-  playButtonText: { fontSize: 24 },
-  logoutButton: { marginTop: 16, padding: 8 },
-  logoutText: { color: "#4b5563", fontSize: 16 },
   errorText: { color: "red", marginBottom: 10 },
 });

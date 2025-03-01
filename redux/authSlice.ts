@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { AuthState, LoginPayload, SignupPayload, AuthResponse } from "@/models/authTypes";
 
-const API_URL = "localhost:5050"; // Replace with actual backend URL
+const API_URL = "http://localhost:5050/auth"; // Replace with actual backend URL
 
 // Async thunk for login
 export const loginUser = createAsyncThunk<AuthResponse, LoginPayload, { rejectValue: string }>(
@@ -12,6 +12,7 @@ export const loginUser = createAsyncThunk<AuthResponse, LoginPayload, { rejectVa
     try {
       const response = await axios.post<AuthResponse>(`${API_URL}/login`, { email, password });
       await AsyncStorage.setItem("token", response.data.token);
+      console.log("response", response.data);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || "Login failed");
@@ -24,6 +25,7 @@ export const signupUser = createAsyncThunk<AuthResponse, SignupPayload, { reject
   "auth/signup",
   async ({ name, email, password }, { rejectWithValue }) => {
     try {
+      console.log("details", name, email, password);
       const response = await axios.post<AuthResponse>(`${API_URL}/signup`, { name, email, password });
       await AsyncStorage.setItem("token", response.data.token);
       return response.data;
