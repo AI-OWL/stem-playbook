@@ -1,4 +1,5 @@
-import { useState } from "react";
+// pages/AuthFlow.tsx
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -11,36 +12,64 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { useDispatch, useSelector } from "react-redux";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { loginUser, signupUser } from "@/redux/authSlice";
-import { RootState, AppDispatch } from "@/redux/store";
+import { login, signup } from "./services/authService";
+import { logger } from "react-native-logs";
 
 export default function AuthFlow() {
   const router = useRouter();
-  const dispatch = useDispatch<AppDispatch>();
-
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({ name: "", email: "", password: "" });
 
-  // Redux auth state
-  const { isAuthenticated, loading, error } = useSelector((state: RootState) => state.auth);
+  const log = logger.createLogger({
+    transport: (msg) => console.log(msg),
+    severity: "debug",
+  });
 
-  // When login is successful, update AsyncStorage and navigate
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const handleLogin = async () => {
-    const result = await dispatch(loginUser(loginData));
-    if (loginUser.fulfilled.match(result)) {
-      await AsyncStorage.setItem("isAuthenticated", "true"); // Store auth state
+    setLoading(true);
+    setError(null);
+    try {
+      const { token, user } = await login(loginData.email, loginData.password);
+
+      log.info("Logged in as:", user);
+      log.info("Token:", token);
+
+
+      console.log("Logged in as:", user);
+      console.log("Token:", token);
+
+      // Optionally store an "isAuthenticated" flag
+      await AsyncStorage.setItem("isAuthenticated", "true");
+
+      // Navigate to your main/tab screen
       router.replace("/(tabs)");
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Login failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSignup = async () => {
-    const result = await dispatch(signupUser(signupData));
-    if (signupUser.fulfilled.match(result)) {
-      await AsyncStorage.setItem("isAuthenticated", "true"); // Store auth state
+    setLoading(true);
+    setError(null);
+    try {
+      const { token, user } = await signup(signupData.name, signupData.email, signupData.password);
+
+      // Optionally store an "isAuthenticated" flag
+      await AsyncStorage.setItem("isAuthenticated", "true");
+
+      // Navigate to your main/tab screen
       router.replace("/(tabs)");
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Signup failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -51,11 +80,21 @@ export default function AuthFlow() {
         <Text style={styles.title}>STEM Playbook</Text>
 
         <View style={styles.tabContainer}>
-          <TouchableOpacity style={[styles.tab, activeTab === "login" && styles.activeTab]} onPress={() => setActiveTab("login")}>
-            <Text style={[styles.tabText, activeTab === "login" && styles.activeTabText]}>Login</Text>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === "login" && styles.activeTab]}
+            onPress={() => setActiveTab("login")}
+          >
+            <Text style={[styles.tabText, activeTab === "login" && styles.activeTabText]}>
+              Login
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.tab, activeTab === "signup" && styles.activeTab]} onPress={() => setActiveTab("signup")}>
-            <Text style={[styles.tabText, activeTab === "signup" && styles.activeTabText]}>Sign Up</Text>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === "signup" && styles.activeTab]}
+            onPress={() => setActiveTab("signup")}
+          >
+            <Text style={[styles.tabText, activeTab === "signup" && styles.activeTabText]}>
+              Sign Up
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -120,7 +159,13 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: 20 },
   logo: { width: 120, height: 120, marginBottom: 20 },
   title: { fontSize: 32, fontWeight: "bold", color: "#1e40af", marginBottom: 24 },
-  tabContainer: { flexDirection: "row", marginBottom: 20, borderRadius: 8, overflow: "hidden", backgroundColor: "#e5e7eb" },
+  tabContainer: {
+    flexDirection: "row",
+    marginBottom: 20,
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: "#e5e7eb",
+  },
   tab: { flex: 1, paddingVertical: 12, paddingHorizontal: 24, alignItems: "center" },
   activeTab: { backgroundColor: "#1e40af" },
   tabText: { fontSize: 16, color: "#4b5563", fontWeight: "500" },
