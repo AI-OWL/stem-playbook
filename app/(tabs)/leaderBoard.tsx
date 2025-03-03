@@ -346,13 +346,12 @@ const LeaderBoard = () => {
     }
 
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View>
         <Header
-          title="Leaderboard"
-          onProfilePress={() => console.log('Profile icon pressed')}
-          style={{ backgroundColor: colors.background }}
-        />
-
+        title="Leaderboard"
+        onProfilePress={() => console.log('Profile icon pressed')}
+        style={{ backgroundColor: colors.background }}
+      />
         <AnimatedFlatList
           data={players}
           keyExtractor={keyExtractor}
@@ -384,7 +383,7 @@ const LeaderBoard = () => {
           windowSize={10}
           initialNumToRender={10}
         />
-      </SafeAreaView>
+      </View>
     );
   };
 

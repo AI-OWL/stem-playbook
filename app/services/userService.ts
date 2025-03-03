@@ -10,7 +10,6 @@ export const fetchAndStoreUser = async (userId: string, token: string): Promise<
     const response = await axios.get<User>(`${API_URL}/${userId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-
     const user = response.data;
     await AsyncStorage.setItem("user", JSON.stringify(user));
     return user;
@@ -24,7 +23,7 @@ export const fetchAndStoreUser = async (userId: string, token: string): Promise<
 export const getStoredUser = async (): Promise<User | null> => {
   try {
     const user = await AsyncStorage.getItem("user");
-    return user ? JSON.parse(user) as User : null;
+    return user ? (JSON.parse(user) as User) : null;
   } catch (error) {
     console.error("Error retrieving user:", error);
     return null;
@@ -39,9 +38,7 @@ export const addCardToUser = async (userId: string, cardId: string, token: strin
       { cardId },
       { headers: { Authorization: `Bearer ${token}` } }
     );
-
     const updatedUser = response.data;
-
     // Update AsyncStorage with the new user data
     await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
     return updatedUser;
