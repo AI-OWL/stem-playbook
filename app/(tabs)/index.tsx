@@ -18,137 +18,53 @@ import StemCard from "@/components/StemCard";
 import CardModal from "@/components/CardModal";
 import { Colors } from "@/constants/Colors";
 import { FontAwesome } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+
+import { fetchAndStoreAllCards } from "../services/cardService";
+import { getStoredUser } from "../services/userService";
+import { getWalletData, WalletCategory } from "../services/walletService";
+import { Card } from "../types";
 
 const REFRESH_INTERVAL = 300000; // 5 minutes
-const ANIMATION_DURATION = 300;
 const GRID_GAP = 12;
 const CARD_WIDTH_PERCENTAGE = 48;
 const STORAGE_KEYS = {
-  THEME: 'theme',
-  CATEGORIES: 'categories',
+  THEME: "theme",
+  CATEGORIES: "categories",
 };
-
-// Mock data remains the same
-const MOCK_CATEGORIES = [
-  {
-    title: "Science",
-    data: [
-      {
-        id: "s1",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Biology Basics",
-        description: "Introduction to cellular structures",
-        rarity: "common",
-        collected: true,
-      },
-      {
-        id: "s2",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Chemistry Lab",
-        description: "Advanced chemical reactions",
-        rarity: "rare",
-        collected: false,
-      },
-    ],
-  },
-  {
-    title: "Technology",
-    data: [
-      {
-        id: "t1",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Web Development",
-        description: "Frontend and backend basics",
-        rarity: "common",
-        collected: true,
-      },
-      {
-        id: "t2",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Mobile Apps",
-        description: "Cross-platform development",
-        rarity: "epic",
-        collected: false,
-      },
-    ],
-  },
-  {
-    title: "Engineering",
-    data: [
-      {
-        id: "e1",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Mechanical Systems",
-        description: "Basic mechanical principles",
-        rarity: "rare",
-        collected: true,
-      },
-      {
-        id: "e2",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Electrical Circuits",
-        description: "Circuit design fundamentals",
-        rarity: "common",
-        collected: false,
-      },
-    ],
-  },
-  {
-    title: "Mathematics",
-    data: [
-      {
-        id: "m1",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Calculus",
-        description: "Differential equations",
-        rarity: "epic",
-        collected: true,
-      },
-      {
-        id: "m2",
-        imageUrl: "/api/placeholder/200/300",
-        title: "Linear Algebra",
-        description: "Matrix operations",
-        rarity: "rare",
-        collected: false,
-      },
-    ],
-  },
-];
-
 
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 
 export default function Index() {
   const systemColorScheme = useColorScheme();
-  const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === 'dark');
-  const colors = useMemo(() => Colors[isDarkMode ? 'dark' : 'light'], [isDarkMode]);
+  const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === "dark");
+  const colors = useMemo(() => Colors[isDarkMode ? "dark" : "light"], [isDarkMode]);
 
-  const [categories, setCategories] = useState([]);
-  const [selectedCardId, setSelectedCardId] = useState(null);
-  const [selectedCardImageUrl, setSelectedCardImageUrl] = useState(null);
+  const [categories, setCategories] = useState<WalletCategory[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedCardImageUrl, setSelectedCardImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const cardAnimations = useRef(new Map()).current;
+  const cardAnimations = useRef(new Map<string, Animated.Value>()).current;
   const scrollY = useRef(new Animated.Value(0)).current;
-  const refreshInterval = useRef(null);
+  const refreshInterval = useRef<NodeJS.Timeout | null>(null);
   const isMounted = useRef(true);
 
-  // Enhanced theme management
+  // Enhanced theme management.
   useEffect(() => {
     const checkAndUpdateTheme = async () => {
       try {
         const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
         if (savedTheme !== null) {
-          setIsDarkMode(savedTheme === 'dark');
+          setIsDarkMode(savedTheme === "dark");
         } else {
-          setIsDarkMode(systemColorScheme === 'dark');
+          setIsDarkMode(systemColorScheme === "dark");
           await AsyncStorage.setItem(STORAGE_KEYS.THEME, systemColorScheme);
         }
       } catch (error) {
-        console.error('Theme check error:', error);
+        console.error("Theme check error:", error);
       }
     };
 
@@ -157,156 +73,144 @@ export default function Index() {
 
     return () => clearInterval(themeInterval);
   }, [systemColorScheme]);
-    // Theme toggle handler
-    const toggleTheme = useCallback(async () => {
-      try {
-        const newTheme = !isDarkMode;
-        setIsDarkMode(newTheme);
-        await AsyncStorage.setItem(STORAGE_KEYS.THEME, newTheme ? 'dark' : 'light');
-      } catch (error) {
-        console.error('Theme toggle error:', error);
-      }
-    }, [isDarkMode]);
 
-    useEffect(() => {
-      const initializeApp = async () => {
+  const toggleTheme = useCallback(async () => {
+    try {
+      const newTheme = !isDarkMode;
+      setIsDarkMode(newTheme);
+      await AsyncStorage.setItem(STORAGE_KEYS.THEME, newTheme ? "dark" : "light");
+    } catch (error) {
+      console.error("Theme toggle error:", error);
+    }
+  }, [isDarkMode]);
+
+  // Fetch wallet data whenever this screen is focused.
+  useFocusEffect(
+    useCallback(() => {
+      const fetchData = async () => {
+        setLoading(true);
         try {
-          await loadInitialData();
+          // Get the auth token (assumed to be stored in AsyncStorage).
+          const token = await AsyncStorage.getItem("token");
+          if (!token) throw new Error("No token found");
 
-          refreshInterval.current = setInterval(() => {
-            if (!refreshing && isMounted.current) {
-              loadCategories(true);
-            }
-          }, REFRESH_INTERVAL);
-        } catch (error) {
-          console.error('Init error:', error);
-          if (isMounted.current) {
-            setError('Failed to initialize app');
-          }
+          // Fetch all cards from the backend.
+          const allCards: any = await fetchAndStoreAllCards(token);
+
+          // Retrieve user data from AsyncStorage (which includes the user’s cardIds).
+          const user = await getStoredUser();
+          if (!user) throw new Error("User not found");
+
+          // Process wallet data by grouping cards by category and computing the collected flag.
+          const walletData = getWalletData(allCards, user.cardIds);
+          setCategories(walletData);
+        } catch (err) {
+          console.error("Error fetching wallet data:", err);
+          setError("Failed to load wallet data");
+        } finally {
+          setLoading(false);
         }
       };
 
-      initializeApp();
+      fetchData();
+
+      // Set up periodic refresh (if needed).
+      refreshInterval.current = setInterval(() => {
+        fetchData();
+      }, REFRESH_INTERVAL);
 
       return () => {
-        isMounted.current = false;
         if (refreshInterval.current) {
           clearInterval(refreshInterval.current);
         }
-        cardAnimations.clear();
       };
-    }, []);
+    }, [])
+  );
 
-    const loadInitialData = async () => {
-      try {
-        await loadCategories(true);
-      } catch (error) {
-        console.error('Initial load error:', error);
-        if (isMounted.current) {
-          setError('Failed to load initial data');
+  const animateCards = useCallback((walletCategories: WalletCategory[]) => {
+    const animations: Animated.Value[] = [];
+
+    walletCategories.forEach((category) => {
+      category.data.forEach((card) => {
+        if (!cardAnimations.has(card.id)) {
+          const animation = new Animated.Value(0);
+          cardAnimations.set(card.id, animation);
+          animations.push(animation);
         }
-      }
-    };
-
-    const animateCards = useCallback((newCategories) => {
-      const animations = [];
-
-      newCategories.forEach(category => {
-        category.data.forEach(card => {
-          if (!cardAnimations.has(card.id)) {
-            const animation = new Animated.Value(0);
-            cardAnimations.set(card.id, animation);
-            animations.push(animation);
-          }
-        });
       });
+    });
 
-      const staggeredAnimations = animations.map((animation, index) =>
-        Animated.sequence([
-          Animated.delay(index * 50),
-          Animated.spring(animation, {
-            toValue: 1,
-            tension: 50,
-            friction: 7,
-            useNativeDriver: true,
-          })
-        ])
-      );
+    const staggeredAnimations = animations.map((animation, index) =>
+      Animated.sequence([
+        Animated.delay(index * 50),
+        Animated.spring(animation, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ])
+    );
 
-      Animated.parallel(staggeredAnimations).start();
-    }, []);
+    Animated.parallel(staggeredAnimations).start();
+  }, [cardAnimations]);
 
-    const loadCategories = async (refresh = false) => {
+  useEffect(() => {
+    if (categories.length > 0) {
+      animateCards(categories);
+    }
+  }, [categories, animateCards]);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    (async () => {
       try {
-        if (refresh && isMounted.current) {
-          setError(null);
-        }
-        setLoading(true);
-
-        // Simulated API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        if (isMounted.current) {
-          setCategories(MOCK_CATEGORIES);
-          animateCards(MOCK_CATEGORIES);
-          await AsyncStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(MOCK_CATEGORIES));
-        }
-
-      } catch (error) {
-        console.error('Load categories error:', error);
-        if (isMounted.current) {
-          setError('Failed to load categories');
-          Alert.alert('Error', 'Failed to load categories. Please try again.');
-        }
+        const token = await AsyncStorage.getItem("token");
+        if (!token) throw new Error("No token found");
+        const allCards: any = await fetchAndStoreAllCards(token);
+        const user = await getStoredUser();
+        if (!user) throw new Error("User not found");
+        const walletData = getWalletData(allCards, user.cardIds);
+        setCategories(walletData);
+      } catch (err) {
+        console.error("Error refreshing wallet data:", err);
+        setError("Failed to refresh wallet data");
       } finally {
-        if (isMounted.current) {
-          setLoading(false);
-          setRefreshing(false);
-        }
+        setRefreshing(false);
       }
-    };
+    })();
+  }, []);
 
-    const handleRefresh = useCallback(() => {
-      setRefreshing(true);
-      loadCategories(true);
-    }, []);
+  const handleCardPress = useCallback((card: any) => {
+    setSelectedCardId(card.id);
+    setSelectedCardImageUrl(card.imageUrl);
 
-    const handleCardPress = useCallback((card) => {
-      setSelectedCardId(card.id);
-      setSelectedCardImageUrl(card.imageUrl || null);
+    const animation = cardAnimations.get(card.id);
+    if (animation) {
+      Animated.sequence([
+        Animated.spring(animation, {
+          toValue: 0.95,
+          tension: 100,
+          friction: 5,
+          useNativeDriver: true,
+        }),
+        Animated.spring(animation, {
+          toValue: 1,
+          tension: 100,
+          friction: 5,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [cardAnimations]);
 
-      const animation = cardAnimations.get(card.id);
-      if (animation) {
-        Animated.sequence([
-          Animated.spring(animation, {
-            toValue: 0.95,
-            tension: 100,
-            friction: 5,
-            useNativeDriver: true,
-          }),
-          Animated.spring(animation, {
-            toValue: 1,
-            tension: 100,
-            friction: 5,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      }
-    }, []);
-
-    const renderCard = useCallback(({ item: card }) => {
+  const renderCard = useCallback(
+    ({ item: card }) => {
       const scale = cardAnimations.get(card.id) || new Animated.Value(1);
-
       return (
         <Animated.View
           key={card.id}
-          style={[
-            styles.cardContainer,
-            {
-              transform: [{ scale }],
-              opacity: scale,
-            },
-          ]}
+          style={[styles.cardContainer, { transform: [{ scale }], opacity: scale }]}
         >
           <StemCard
             imageUrl={card.imageUrl}
@@ -314,98 +218,59 @@ export default function Index() {
             description={card.description}
             rarity={card.rarity}
             collected={card.collected}
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.cardBackground,
-                borderColor: colors.border,
-              }
-            ]}
-            textColor={isDarkMode ? '#FFFFFF' : colors.text}
-            secondaryTextColor={isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary}
+            style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+            textColor={isDarkMode ? "#FFFFFF" : colors.text}
+            secondaryTextColor={isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.textSecondary}
             onPress={() => handleCardPress(card)}
           />
         </Animated.View>
       );
-    }, [colors, handleCardPress, isDarkMode]);
-  const renderSectionHeader = useCallback(({ section: { title, data } }) => {
-    const headerTranslateY = scrollY.interpolate({
-      inputRange: [-100, 0, 100],
-      outputRange: [50, 0, -50],
-      extrapolate: 'clamp',
-    });
+    },
+    [colors, handleCardPress, isDarkMode, cardAnimations]
+  );
 
-    const collectedCount = data.filter(card => card.collected).length;
-
-    return (
-      <Animated.View
-        style={[
-          styles.sectionContainer,
-          {
-            transform: [{ translateY: headerTranslateY }],
-          },
-        ]}
-      >
-        <View style={[
-          styles.sectionHeaderContainer,
-          {
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-          }
-        ]}>
-          <ThemedText style={[
-            styles.sectionHeader,
-            { color: isDarkMode ? '#FFFFFF' : colors.text }
-          ]}>
-            {title}
-          </ThemedText>
-          <ThemedText style={[
-            styles.sectionCount,
-            { color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary }
-          ]}>
-            {collectedCount}/{data.length} Collected
-          </ThemedText>
-        </View>
-        <View style={styles.grid}>
-          {data.map((card) => (
-            <View key={card.id}>
-              {renderCard({ item: card })}
-            </View>
-          ))}
-        </View>
-      </Animated.View>
-    );
-  }, [colors, renderCard, scrollY, isDarkMode]);
+  const renderSectionHeader = useCallback(
+    ({ section: { title, data } }) => {
+      const headerTranslateY = scrollY.interpolate({
+        inputRange: [-100, 0, 100],
+        outputRange: [50, 0, -50],
+        extrapolate: "clamp",
+      });
+      const collectedCount = data.filter((card: any) => card.collected).length;
+      return (
+        <Animated.View style={[styles.sectionContainer, { transform: [{ translateY: headerTranslateY }] }]}>
+          <View style={[styles.sectionHeaderContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <ThemedText style={[styles.sectionHeader, { color: isDarkMode ? "#FFFFFF" : colors.text }]}>{title}</ThemedText>
+            <ThemedText style={[styles.sectionCount, { color: isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.textSecondary }]}>
+              {collectedCount}/{data.length} Collected
+            </ThemedText>
+          </View>
+          <View style={styles.grid}>
+            {data.map((card: any) => renderCard({ item: card }))}
+          </View>
+        </Animated.View>
+      );
+    },
+    [colors, renderCard, scrollY, isDarkMode]
+  );
 
   const renderEmpty = useCallback(() => (
     <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
       <FontAwesome
         name="folder-open"
         size={48}
-        color={isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.icon}
+        color={isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.icon}
       />
-      <ThemedText style={[
-        styles.emptyText,
-        { color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary }
-      ]}>
-        {error || 'No cards available'}
+      <ThemedText style={[styles.emptyText, { color: isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.textSecondary }]}>
+        {error || "No cards available"}
       </ThemedText>
     </View>
   ), [colors, error, isDarkMode]);
 
   const renderLoading = useCallback(() => (
-    <View style={[
-      styles.loadingContainer,
-      { backgroundColor: colors.background }
-    ]}>
-      <ActivityIndicator
-        size="large"
-        color={isDarkMode ? '#FFFFFF' : colors.tint}
-      />
-      <ThemedText style={[
-        styles.loadingText,
-        { color: isDarkMode ? '#FFFFFF' : colors.text }
-      ]}>
+    <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+      <ActivityIndicator size="large" color={isDarkMode ? "#FFFFFF" : colors.tint} />
+      <ThemedText style={[styles.loadingText, { color: isDarkMode ? "#FFFFFF" : colors.text }]}>
         Loading cards...
       </ThemedText>
     </View>
@@ -416,15 +281,12 @@ export default function Index() {
   }
 
   return (
-    <ThemedView style={[
-      styles.container,
-      { backgroundColor: colors.background }
-    ]}>
+    <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
       <Header
         title="Wallet"
         style={{ backgroundColor: colors.background }}
-        textColor={isDarkMode ? '#FFFFFF' : colors.text}
-        iconColor={isDarkMode ? '#FFFFFF' : colors.tint}
+        textColor={isDarkMode ? "#FFFFFF" : colors.text}
+        iconColor={isDarkMode ? "#FFFFFF" : colors.tint}
       />
 
       <AnimatedSectionList
@@ -436,31 +298,22 @@ export default function Index() {
         contentContainerStyle={[
           styles.listContent,
           categories.length === 0 && styles.emptyList,
-          { backgroundColor: colors.background }
+          { backgroundColor: colors.background },
         ]}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={isDarkMode ? '#FFFFFF' : colors.tint}
-            colors={[isDarkMode ? '#FFFFFF' : colors.tint]}
+            tintColor={isDarkMode ? "#FFFFFF" : colors.tint}
+            colors={[isDarkMode ? "#FFFFFF" : colors.tint]}
             progressBackgroundColor={colors.card}
           />
         }
-        ListHeaderComponent={<View style={[
-          styles.listHeader,
-          { backgroundColor: colors.background }
-        ]} />}
-        ListFooterComponent={<View style={[
-          styles.listFooter,
-          { backgroundColor: colors.background }
-        ]} />}
-        removeClippedSubviews={Platform.OS !== 'web'}
+        ListHeaderComponent={<View style={[styles.listHeader, { backgroundColor: colors.background }]} />}
+        ListFooterComponent={<View style={[styles.listFooter, { backgroundColor: colors.background }]} />}
+        removeClippedSubviews={Platform.OS !== "web"}
         maxToRenderPerBatch={5}
         windowSize={5}
         initialNumToRender={10}
@@ -481,12 +334,13 @@ export default function Index() {
     </ThemedView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
   listContent: {
-    paddingHorizontal: 20, // Increased from 16 to 20 for more side padding
+    paddingHorizontal: 20,
   },
   listHeader: {
     height: 20,
@@ -496,24 +350,24 @@ const styles = StyleSheet.create({
   },
   emptyList: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   sectionContainer: {
-    marginBottom: 24, // Increased from 20 to 24 for better section spacing
-    paddingHorizontal: 12, // Added padding to prevent cards touching edges
+    marginBottom: 24,
+    paddingHorizontal: 12,
   },
   sectionHeaderContainer: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    marginBottom: 16, // Increased from 15 to 16 for consistency
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    marginBottom: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     borderWidth: 1,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
@@ -525,30 +379,30 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     fontSize: 18,
-    fontWeight: '600',
-    textTransform: 'uppercase',
+    fontWeight: "600",
+    textTransform: "uppercase",
   },
   sectionCount: {
     fontSize: 14,
   },
   grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
     gap: GRID_GAP,
-    paddingHorizontal: 4, // Added padding to prevent cards touching edges
+    paddingHorizontal: 4,
   },
   cardContainer: {
     width: `${CARD_WIDTH_PERCENTAGE}%`,
-    marginBottom: 12, // Added margin bottom for vertical spacing
+    marginBottom: 12,
   },
   card: {
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 1,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
@@ -560,23 +414,22 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 32,
   },
   emptyText: {
     fontSize: 16,
     marginTop: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
   },
 });
-

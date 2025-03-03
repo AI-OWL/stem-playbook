@@ -1,20 +1,78 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
-import React from "react";
-import { Video, ResizeMode } from "expo-av"; // Using expo-av for video playback
+import React, { useState, useEffect } from "react";
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  ScrollView, 
+  ActivityIndicator, 
+  Alert 
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { fetchCard } from "../services/cardService";
+import { Video, ResizeMode } from "expo-av";
 
 export default function CardDetailsScreen() {
-  const { id } = useLocalSearchParams(); // Get the card ID from the URL
+  const params = useLocalSearchParams();
+  // Ensure we have a string ID even if it's provided as an array.
+  const cardId: string = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
 
-  // Sample data (Replace with actual fetched data in the future)
-  const cardData = {
-    name: "Rick Astley",
-    videoUrl: "https://www.w3schools.com/html/mov_bbb.mp4", // Sample video
-    tagline: "MC2 STEM High School Graduate is now process engineer at Rockwell Automation",
-    description:
-      "Aalyah Brown first discovered engineering during a summer program when she was in high school. A graduate of MC2 High School, Aaliyah has an undergraduate degree in engineering technology, is working as a process engineer at Rockwell Automation, and is pursuing a master’s in engineering management from Auburn University.",
-  };
+  const [cardData, setCardData] = useState<{
+    name: string;
+    tagline: string;
+    bodyText: string;
+    videoUrl: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadCard = async () => {
+      setLoading(true);
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) {
+          throw new Error("No token found");
+        }
+        const card = await fetchCard(cardId, token);
+        // For the details page we need name, tagline, bodyText, and videoUrl.
+        setCardData({
+          name: card.name,
+          tagline: card.tagline,
+          bodyText: card.body, // Assuming the backend property is 'body'
+          videoUrl: card.videoUrl,
+        });
+      } catch (err) {
+        console.error("Error fetching card:", err);
+        setError("Failed to load card details");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCard();
+  }, [cardId]);
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
+
+  if (error || !cardData) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>{error || "Card not found"}</Text>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.backButton}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -24,7 +82,7 @@ export default function CardDetailsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Space at the top so content doesn't overlap the sticky title */}
+        {/* Spacer so content doesn't overlap the sticky title */}
         <View style={{ height: 60 }} />
 
         {/* Video Player */}
@@ -32,18 +90,21 @@ export default function CardDetailsScreen() {
           source={{ uri: cardData.videoUrl }}
           style={styles.video}
           useNativeControls
-          resizeMode={ResizeMode.CONTAIN} // Correct way
+          resizeMode={ResizeMode.CONTAIN}
           isLooping
         />
 
         {/* Card Tagline */}
         <Text style={styles.tagline}>{cardData.tagline}</Text>
 
-        {/* Card Description */}
-        <Text style={styles.description}>{cardData.description}</Text>
+        {/* Card Body Text */}
+        <Text style={styles.description}>{cardData.bodyText}</Text>
 
-        {/* Redeem Button at the Bottom */}
-        <TouchableOpacity style={styles.redeemButton} onPress={() => alert("Points Redeemed!")}>
+        {/* Redeem Button */}
+        <TouchableOpacity
+          style={styles.redeemButton}
+          onPress={() => Alert.alert("Points Redeemed!")}
+        >
           <Text style={styles.redeemButtonText}>Redeem Points</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -54,7 +115,7 @@ export default function CardDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1c1c1e", // Dark theme background
+    backgroundColor: "#1c1c1e",
     paddingHorizontal: 20,
   },
   stickyTitleContainer: {
@@ -62,41 +123,41 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#1c1c1e", // Same background color to blend in
+    backgroundColor: "#1c1c1e",
     paddingVertical: 10,
     alignItems: "center",
-    zIndex: 10, // Ensures it stays on top
+    zIndex: 10,
   },
   scrollContent: {
-    paddingBottom: 100, // Space for the button
+    paddingBottom: 100,
   },
   name: {
     fontSize: 24,
     fontWeight: "bold",
-    textAlign: "center",
     color: "#fff",
+    textAlign: "center",
   },
   video: {
     width: "100%",
     height: 200,
     borderRadius: 10,
     backgroundColor: "#000",
-    alignSelf: "center",
+    marginTop: 20,
   },
   tagline: {
     fontSize: 18,
     fontWeight: "bold",
     color: "#fff",
     textAlign: "center",
-    marginTop: 10,
+    marginTop: 20,
   },
   description: {
     fontSize: 16,
     color: "#ddd",
     textAlign: "justify",
-    marginTop: 10,
+    marginTop: 20,
     paddingHorizontal: 10,
-    lineHeight: 24, // Increased line spacing for readability
+    lineHeight: 24,
   },
   redeemButton: {
     position: "absolute",
@@ -115,5 +176,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#333",
+  },
+  errorText: {
+    color: "#fff",
+    fontSize: 18,
+    textAlign: "center",
+    marginVertical: 20,
+  },
+  backButton: {
+    color: "#ddd",
+    fontSize: 16,
+    textAlign: "center",
+    marginTop: 20,
   },
 });
