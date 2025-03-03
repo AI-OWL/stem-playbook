@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+// import AsyncStorage from "@react-native-async-storage/async-storage";
 import { login, signup } from "./services/authService";
 import { logger } from "react-native-logs";
 
@@ -44,7 +44,7 @@ export default function AuthFlow() {
       console.log("Token:", token);
 
       // Optionally store an "isAuthenticated" flag
-      await AsyncStorage.setItem("isAuthenticated", "true");
+      // await AsyncStorage.setItem("isAuthenticated", "true");
 
       // Navigate to your main/tab screen
       router.replace("/(tabs)");
@@ -62,7 +62,7 @@ export default function AuthFlow() {
       const { token, user } = await signup(signupData.name, signupData.email, signupData.password);
 
       // Optionally store an "isAuthenticated" flag
-      await AsyncStorage.setItem("isAuthenticated", "true");
+      // await AsyncStorage.setItem("isAuthenticated", "true");
 
       // Navigate to your main/tab screen
       router.replace("/(tabs)");
