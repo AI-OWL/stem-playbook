@@ -1,15 +1,11 @@
-import axios from "axios";
+import api from "./api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { User } from "../types";
 
-const API_URL = "http://localhost:5050/users"; // Adjust if needed
-
-// Fetch and store user data in AsyncStorage
-export const fetchAndStoreUser = async (userId: string, token: string): Promise<User> => {
+// Fetch and store user data
+export const fetchAndStoreUser = async (userId: string): Promise<User> => {
   try {
-    const response = await axios.get<User>(`${API_URL}/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const response = await api.get<User>(`/users/${userId}`);
     const user = response.data;
     await AsyncStorage.setItem("user", JSON.stringify(user));
     return user;
@@ -19,7 +15,7 @@ export const fetchAndStoreUser = async (userId: string, token: string): Promise<
   }
 };
 
-// Get stored user data from AsyncStorage
+// Get stored user data
 export const getStoredUser = async (): Promise<User | null> => {
   try {
     const user = await AsyncStorage.getItem("user");
@@ -31,15 +27,10 @@ export const getStoredUser = async (): Promise<User | null> => {
 };
 
 // Add a card to the user's collection and update AsyncStorage
-export const addCardToUser = async (userId: string, cardId: string, token: string): Promise<User> => {
+export const addCardToUser = async (userId: string, cardId: string): Promise<User> => {
   try {
-    const response = await axios.put<User>(
-      `${API_URL}/${userId}/cards`,
-      { cardId },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const response = await api.put<User>(`/users/${userId}/cards`, { cardId });
     const updatedUser = response.data;
-    // Update AsyncStorage with the new user data
     await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
     return updatedUser;
   } catch (error) {
@@ -48,7 +39,7 @@ export const addCardToUser = async (userId: string, cardId: string, token: strin
   }
 };
 
-// Logout (clear stored user data and token)
+// Logout user
 export const logoutUser = async (): Promise<void> => {
   try {
     await AsyncStorage.removeItem("user");

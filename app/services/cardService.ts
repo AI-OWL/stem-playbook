@@ -1,21 +1,27 @@
-import axios from "axios";
+import api from "./api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Card } from "../types"; // Import the Card interface
-
-const API_URL = "http://localhost:5050/cards"; // Adjust as needed
+import { Card } from "../types";
 
 // Fetch and store all cards in AsyncStorage
-export const fetchAndStoreAllCards = async (token: string): Promise<Card[]> => {
+export const fetchAndStoreAllCards = async (): Promise<Card[]> => {
   try {
-    const response = await axios.get<Card[]>(`${API_URL}/`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
+    const response = await api.get<Card[]>("/cards");
     const cards = response.data;
     await AsyncStorage.setItem("cards", JSON.stringify(cards));
     return cards;
   } catch (error) {
     console.error("Error fetching cards:", error);
+    throw error;
+  }
+};
+
+// Fetch a single card by ID
+export const fetchCard = async (cardId: string): Promise<Card> => {
+  try {
+    const response = await api.get<Card>(`/cards/${cardId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching card:", error);
     throw error;
   }
 };
@@ -31,21 +37,7 @@ export const getStoredCards = async (): Promise<Card[] | null> => {
   }
 };
 
-// Fetch a single card by ID from the backend
-export const fetchCard = async (cardId: string, token: string): Promise<Card> => {
-  try {
-    const response = await axios.get<Card>(`${API_URL}/${cardId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching card:", error);
-    throw error;
-  }
-};
-
-// Get a single card from AsyncStorage
+// Get a single stored card
 export const getStoredCard = async (cardId: string): Promise<Card | null> => {
   try {
     const cards = await getStoredCards();
