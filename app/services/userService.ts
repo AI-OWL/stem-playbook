@@ -49,3 +49,25 @@ export const logoutUser = async (): Promise<void> => {
     console.error("Error logging out:", error);
   }
 };
+
+// Fetch top users (leaderboard)
+export const fetchTopUsers = async (): Promise<User[]> => {
+  try {
+    const response = await api.get<User[]>("/users/top");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching top users:", error);
+    throw error;
+  }
+};
+
+// Fetch a user's rank by ID
+export const fetchUserRank = async (userId: string): Promise<{ rank: number; total: number }> => {
+  try {
+    const response = await api.get<{ rank: number; total: number }>(`/users/rank/${userId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching user rank:", error);
+    throw error;
+  }
+};
