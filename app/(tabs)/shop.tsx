@@ -105,7 +105,6 @@ function ShopContent() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [userPoints, setUserPoints] = useState(0);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -185,13 +184,15 @@ function ShopContent() {
   const loadUserPoints = async () => {
     try {
       const pointsData = await AsyncStorage.getItem(STORAGE_KEYS.USER_POINTS);
+      let points = 0;
       if (pointsData) {
-        setUserPoints(parseInt(pointsData, 10));
+        points = parseInt(pointsData, 10);
       }
+      return points;
     } catch (error) {
       console.error("Error loading user points:", error);
       Alert.alert("Error", "Failed to load user points. Using default value.");
-      setUserPoints(1000);
+      return 1000;
     }
   };
 
@@ -257,9 +258,9 @@ function ShopContent() {
     }
   }, [loading, isLoadingMore, hasMore]);
 
-  const handlePurchase = useCallback(async (item) => {
-    const { points, purchaseItem, isPurchased } = usePoints();
+  const { points, purchaseItem, isPurchased } = usePoints();
 
+  const handlePurchase = useCallback(async (item) => {
     // If already purchased, just show a message
     if (isPurchased(item.id)) {
       Alert.alert(
@@ -325,7 +326,7 @@ function ShopContent() {
         },
       ],
     );
-  }, []);
+  }, [points, purchaseItem, isPurchased]);
 
   const renderHeader = useCallback(() => {
     const { points } = usePoints();
