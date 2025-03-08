@@ -78,18 +78,18 @@ export default function Index() {
   }, [systemColorScheme]);
 
   // Theme toggle handler
-  const toggleTheme = useCallback(async () => {
-    try {
-      const newTheme = !isDarkMode;
-      setIsDarkMode(newTheme);
-      await AsyncStorage.setItem(
-        STORAGE_KEYS.THEME,
-        newTheme ? "dark" : "light",
-      );
-    } catch (error) {
-      console.error("Theme toggle error:", error);
-    }
-  }, [isDarkMode]);
+  // const toggleTheme = useCallback(async () => {
+  //   try {
+  //     const newTheme = !isDarkMode;
+  //     setIsDarkMode(newTheme);
+  //     await AsyncStorage.setItem(
+  //       STORAGE_KEYS.THEME,
+  //       newTheme ? "dark" : "light",
+  //     );
+  //   } catch (error) {
+  //     console.error("Theme toggle error:", error);
+  //   }
+  // }, [isDarkMode]);
 
   // Initial data fetch
   useEffect(() => {
