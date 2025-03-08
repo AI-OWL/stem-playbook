@@ -1,8 +1,6 @@
-
 import React from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { usePoints } from "../app/PointsContext";
 
 // Function to return different images for each store item
 const getImageSource = (id) => {
@@ -30,6 +28,8 @@ interface StoreItemProps {
   type: string;
   rarity: "common" | "rare" | "epic" | "legendary";
   onPress: () => void;
+  canAfford: boolean;
+  alreadyPurchased: boolean;
 }
 
 const StoreItem: React.FC<StoreItemProps> = ({
@@ -42,11 +42,9 @@ const StoreItem: React.FC<StoreItemProps> = ({
   type,
   rarity,
   onPress,
+  canAfford,
+  alreadyPurchased,
 }) => {
-  const { points: userPoints, isPurchased } = usePoints();
-  const canAfford = userPoints >= itemPoints;
-  const alreadyPurchased = isPurchased(id);
-
   // Determine border color based on rarity
   const getRarityColor = () => {
     switch (rarity) {

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
-import { usePoints } from "../../app/PointsContext";
 
 interface AchievementItemProps {
   title: string;
@@ -33,13 +32,11 @@ const AchievementItem: React.FC<AchievementItemProps> = ({
   rarity,
   onRedeem,
 }) => {
-  const { redeemAchievement, isAchievementRedeemed } = usePoints(); //This line is crucial and should work correctly within the PointsProvider
   const [redeemed, setRedeemed] = useState(false);
   const progressPercentage = (progress / total) * 100;
 
   const handleRedeem = () => {
     if (completed && !redeemed) {
-      redeemAchievement(title, points);
       setRedeemed(true);
       if (onRedeem) onRedeem();
     }
