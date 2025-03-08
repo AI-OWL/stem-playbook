@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,12 +9,13 @@ import {
   SafeAreaView,
   Platform,
   StatusBar as RNStatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState, useEffect } from "react";
-import { ResizeMode, Video } from "expo-av";
-import { CARD_DETAILS } from "../data/cardData";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Video, ResizeMode } from "expo-av";
+import { fetchCard } from "../services/cardService";
 import { usePoints, PointsProvider } from "../PointsContext";
 
 const handleRedeemPoints = (
@@ -37,27 +39,71 @@ const handleRedeemPoints = (
           Alert.alert("Success", "Points have been redeemed successfully!");
         },
       },
-    ],
+    ]
   );
 };
 
 function CardDetailsContent({ id, router }) {
   const { redeemCard, isCardRedeemed } = usePoints();
   const [pointsRedeemed, setPointsRedeemed] = useState(false);
+  const [cardData, setCardData] = useState<{
+    name: string;
+    tagline: string;
+    bodyText: string;
+    videoUrl: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if this card has already been redeemed
-    if (id && isCardRedeemed(id as string)) {
-      setPointsRedeemed(true);
-    }
+    const loadCard = async () => {
+      setLoading(true);
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) {
+          throw new Error("No token found");
+        }
+        const card = await fetchCard(id as string, token);
+        setCardData({
+          name: card.name,
+          tagline: card.tagline,
+          bodyText: card.body,
+          videoUrl: card.videoUrl,
+        });
+        // Check if this card has already been redeemed
+        if (isCardRedeemed(id as string)) {
+          setPointsRedeemed(true);
+        }
+      } catch (err) {
+        console.error("Error fetching card:", err);
+        setError("Failed to load card details");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCard();
   }, [id, isCardRedeemed]);
 
-  const cardData = CARD_DETAILS[id as keyof typeof CARD_DETAILS];
-
-  if (!cardData) {
+  if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.name}>Card not found</Text>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !cardData) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <Text style={styles.errorText}>{error || "Card not found"}</Text>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.backButton}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -70,10 +116,7 @@ function CardDetailsContent({ id, router }) {
           <Text style={styles.name}>{cardData.name}</Text>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.videoContainer}>
             <Video
               source={{ uri: cardData.videoUrl }}
@@ -85,8 +128,7 @@ function CardDetailsContent({ id, router }) {
           </View>
 
           <Text style={styles.tagline}>{cardData.tagline}</Text>
-
-          <Text style={styles.description}>{cardData.description}</Text>
+          <Text style={styles.description}>{cardData.bodyText}</Text>
 
           <TouchableOpacity
             style={[
@@ -99,9 +141,7 @@ function CardDetailsContent({ id, router }) {
             disabled={pointsRedeemed}
           >
             <Text style={styles.redeemButtonText}>
-              {pointsRedeemed
-                ? "Points Redeemed"
-                : "Redeem 75 Points"}
+              {pointsRedeemed ? "Points Redeemed" : "Redeem 75 Points"}
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -186,5 +226,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#fff",
+  },
+  errorText: {
+    color: "#fff",
+    fontSize: 18,
+    textAlign: "center",
+    marginVertical: 20,
+  },
+  backButton: {
+    color: "#ddd",
+    fontSize: 16,
+    textAlign: "center",
+    marginTop: 20,
   },
 });

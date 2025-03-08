@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  SafeAreaView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedText } from "@/components/ThemedText";
@@ -20,49 +21,21 @@ import CardModal from "@/components/CardModal";
 import { Colors } from "@/constants/Colors";
 import { FontAwesome } from "@expo/vector-icons";
 import { CARD_DETAILS } from "@/app/data/cardData";
+import { fetchAndStoreAllCards } from "../services/cardService";
+import { getStoredUser } from "../services/userService";
+import { getWalletData, WalletCategory } from "../services/walletService";
+import { Card } from "../types";
 
 const REFRESH_INTERVAL = 300000; // 5 minutes
 const ANIMATION_DURATION = 300;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const PADDING = 16;
 const CARD_MARGIN = 8;
+const GRID_GAP = 12;
+const CARD_WIDTH_PERCENTAGE = 48;
 const STORAGE_KEYS = {
   THEME: "theme",
   CATEGORIES: "categories",
-};
-
-// Function to generate categories dynamically from cardData
-const generateCategories = () => {
-  const categoryMap = {
-    'Science': [],
-    'Technology': [],
-    'Engineering': [],
-    'Mathematics': []
-  };
-
-  // Process each card in CARD_DETAILS
-  Object.entries(CARD_DETAILS).forEach(([id, card]) => {
-    // Use the card's category field
-    const category = card.category || 'Uncategorized';
-
-    // Only add to our defined categories
-    if (categoryMap[category] !== undefined) {
-      categoryMap[category].push({
-        id,
-        name: card.name,
-        imageUrl: card.image || require("../../assets/cards/Default.png"),
-        collected: !!card.image // If image exists, consider it collected
-      });
-    }
-  });
-
-  // Convert the map to the array structure needed for SectionList
-  return Object.entries(categoryMap)
-    .filter(([_, data]) => data.length > 0) // Only include categories with cards
-    .map(([title, data]) => ({
-      title,
-      data
-    }));
 };
 
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
@@ -70,24 +43,19 @@ const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 export default function Index() {
   const systemColorScheme = useColorScheme();
   const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === "dark");
-  const colors = useMemo(
-    () => Colors[isDarkMode ? "dark" : "light"],
-    [isDarkMode],
-  );
+  const colors = useMemo(() => Colors[isDarkMode ? "dark" : "light"], [isDarkMode]);
 
-  const [categories, setCategories] = useState([]);
-  const [selectedCardId, setSelectedCardId] = useState(null);
-  const [selectedCardImageUrl, setSelectedCardImageUrl] = useState(null);
+  const [categories, setCategories] = useState<WalletCategory[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedCardImageUrl, setSelectedCardImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const cardAnimations = useRef(new Map()).current;
+  const cardAnimations = useRef(new Map<string, Animated.Value>()).current;
   const scrollY = useRef(new Animated.Value(0)).current;
-  const refreshInterval = useRef(null);
-  const isMounted = useRef(true);
 
-  // Enhanced theme management
+  // Theme management
   useEffect(() => {
     const checkAndUpdateTheme = async () => {
       try {
@@ -123,60 +91,45 @@ export default function Index() {
     }
   }, [isDarkMode]);
 
+  // Initial data fetch
   useEffect(() => {
-    isMounted.current = true;
-
-    const initializeApp = async () => {
+    const fetchData = async () => {
+      setLoading(true);
       try {
-        if (isMounted.current) {
-          setError(null);
-          setRefreshing(true);
-        }
+        const token = await AsyncStorage.getItem("token");
+        if (!token) throw new Error("No token found");
 
-        await loadInitialData();
+        const allCards: any = await fetchAndStoreAllCards(token);
+        const user = await getStoredUser();
+        if (!user) throw new Error("User not found");
 
-        if (isMounted.current) {
-          setRefreshing(false);
-        }
-      } catch (error) {
-        console.error("Init error:", error);
-        if (isMounted.current) {
-          setError("Failed to initialize app");
-          setRefreshing(false);
-        }
+        const walletData = getWalletData(allCards, user.cardIds);
+        setCategories(walletData);
+      } catch (err) {
+        console.error("Error fetching wallet data:", err);
+        setError("Failed to load wallet data");
+      } finally {
+        setLoading(false);
       }
     };
 
-    initializeApp();
+    fetchData();
+  }, []); // Empty dependency array means it only runs once on mount
 
-    // Cleanup function
-    return () => {
-      isMounted.current = false;
-      if (refreshInterval.current) {
-        clearInterval(refreshInterval.current);
-        refreshInterval.current = null;
-      }
-      setSelectedCardId(null);
-      setSelectedCardImageUrl(null);
-      setRefreshing(false);
-    };
-  }, []);
-
-  const loadInitialData = async () => {
+  const toggleTheme = useCallback(async () => {
     try {
-      await loadCategories(true);
+      const newTheme = !isDarkMode;
+      setIsDarkMode(newTheme);
+      await AsyncStorage.setItem(STORAGE_KEYS.THEME, newTheme ? "dark" : "light");
     } catch (error) {
-      console.error("Initial load error:", error);
-      if (isMounted.current) {
-        setError("Failed to load initial data");
-      }
+      console.error("Theme toggle error:", error);
     }
-  };
+  }, [isDarkMode]);
 
-  const animateCards = useCallback((newCategories) => {
-    const animations = [];
+  const animateCards = useCallback((walletCategories: WalletCategory[]) => {
+    const animations: Animated.Value[] = [];
 
-    newCategories.forEach((category) => {
+    walletCategories.forEach((category) => {
       category.data.forEach((card) => {
         if (!cardAnimations.has(card.id)) {
           const animation = new Animated.Value(0);
@@ -195,53 +148,39 @@ export default function Index() {
           friction: 7,
           useNativeDriver: true,
         }),
-      ]),
+      ])
     );
 
     Animated.parallel(staggeredAnimations).start();
-  }, []);
+  }, [cardAnimations]);
 
-  const loadCategories = async (refresh = false) => {
-    try {
-      if (refresh && isMounted.current) {
-        setError(null);
-      }
-      setLoading(true);
-
-      // Generate dynamic categories from cardData
-      const dynamicCategories = generateCategories();
-
-      // Simulate network delay
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      if (isMounted.current) {
-        setCategories(dynamicCategories);
-        animateCards(dynamicCategories);
-        await AsyncStorage.setItem(
-          STORAGE_KEYS.CATEGORIES,
-          JSON.stringify(dynamicCategories),
-        );
-      }
-    } catch (error) {
-      console.error("Load categories error:", error);
-      if (isMounted.current) {
-        setError("Failed to load categories");
-        Alert.alert("Error", "Failed to load categories. Please try again.");
-      }
-    } finally {
-      if (isMounted.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
+  useEffect(() => {
+    if (categories.length > 0) {
+      animateCards(categories);
     }
-  };
+  }, [categories, animateCards]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
-    loadCategories(true);
+    (async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) throw new Error("No token found");
+        const allCards: any = await fetchAndStoreAllCards(token);
+        const user = await getStoredUser();
+        if (!user) throw new Error("User not found");
+        const walletData = getWalletData(allCards, user.cardIds);
+        setCategories(walletData);
+      } catch (err) {
+        console.error("Error refreshing wallet data:", err);
+        setError("Failed to refresh wallet data");
+      } finally {
+        setRefreshing(false);
+      }
+    })();
   }, []);
 
-  const handleCardPress = useCallback((card) => {
+  const handleCardPress = useCallback((card: any) => {
     setSelectedCardId(card.id);
     setSelectedCardImageUrl(card.imageUrl);
 
@@ -478,6 +417,9 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },
@@ -511,8 +453,8 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     fontSize: 18,
-    fontWeight: '600',
-    textTransform: 'uppercase',
+    fontWeight: "600",
+    textTransform: "uppercase",
   },
   sectionCount: {
     fontSize: 14,
@@ -532,19 +474,19 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 32,
   },
   emptyText: {
     fontSize: 16,
     marginTop: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
     marginTop: 16,
