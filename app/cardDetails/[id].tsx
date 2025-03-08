@@ -15,6 +15,7 @@ import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Video, ResizeMode } from "expo-av";
+import { Ionicons } from "@expo/vector-icons";
 import { fetchCard } from "../services/cardService";
 
 const handleRedeemPoints = (
@@ -33,8 +34,6 @@ const handleRedeemPoints = (
         text: "Yes",
         onPress: async () => {
           try {
-            // Here you would typically update some storage or backend
-            // For this example, we'll just set it locally
             await AsyncStorage.setItem(`redeemed_${cardId}`, "true");
             setPointsRedeemed(true);
             Alert.alert("Success", "Points have been redeemed successfully!");
@@ -75,7 +74,6 @@ export default function CardDetailsScreen() {
           bodyText: card.body,
           videoUrl: card.videoUrl,
         });
-        // Check if this card has already been redeemed
         const redeemed = await AsyncStorage.getItem(`redeemed_${id}`);
         if (redeemed === "true") {
           setPointsRedeemed(true);
@@ -119,6 +117,12 @@ export default function CardDetailsScreen() {
       <StatusBar style="light" />
       <View style={styles.container}>
         <View style={styles.stickyTitleContainer}>
+          <TouchableOpacity
+            style={styles.backButtonContainer}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={28} color="#fff" />
+          </TouchableOpacity>
           <Text style={styles.name}>{cardData.name}</Text>
         </View>
 
@@ -174,12 +178,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#121212",
     borderBottomWidth: 1,
     borderBottomColor: "#333",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  backButtonContainer: {
+    marginRight: 15,
   },
   name: {
     fontSize: 24,
     fontWeight: "bold",
     color: "#fff",
     marginBottom: 4,
+    flex: 1,
   },
   videoContainer: {
     height: 250,
