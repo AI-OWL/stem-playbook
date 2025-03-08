@@ -22,6 +22,9 @@ import { fetchTopUsers, fetchUserRank, getStoredUser } from '../services/userSer
 const ITEMS_PER_PAGE = 20;
 const REFRESH_INTERVAL = 60000; // 1 minute
 const ANIMATION_DURATION = 300;
+const STORAGE_KEYS = {
+  THEME: "theme",
+};
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
@@ -38,25 +41,44 @@ const LeaderBoard = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const scrollY = useMemo(() => new Animated.Value(0), []);
+  const scrollY = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList>(null);
 
-  const headerScale = useMemo(() =>
-    scrollY.interpolate({
-      inputRange: [-100, 0, 100],
-      outputRange: [1.2, 1, 0.8],
-      extrapolate: 'clamp',
-    })
-  , [scrollY]);
+  const headerScale = scrollY.interpolate({
+    inputRange: [-100, 0, 100],
+    outputRange: [1.2, 1, 0.8],
+    extrapolate: 'clamp',
+  });
 
+  // Theme management
+  useEffect(() => {
+    const checkAndUpdateTheme = async () => {
+      try {
+        const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
+        if (savedTheme !== null) {
+          setIsDarkMode(savedTheme === 'dark');
+        } else {
+          setIsDarkMode(systemColorScheme === 'dark');
+          await AsyncStorage.setItem(STORAGE_KEYS.THEME, systemColorScheme === 'dark' ? 'dark' : 'light');
+        }
+      } catch (error) {
+        console.error("Theme check error:", error);
+      }
+    };
+
+    checkAndUpdateTheme();
+    const themeInterval = setInterval(checkAndUpdateTheme, 1000);
+
+    return () => clearInterval(themeInterval);
+  }, [systemColorScheme]);
+
+  // Initial data fetch and refresh interval
   useEffect(() => {
     const initializeApp = async () => {
       console.log('[DEBUG] Initializing LeaderBoard...');
-      await Promise.all([
-        loadThemePreference(),
-        loadInitialData(),
-      ]);
+      await loadInitialData();
     };
 
     initializeApp();
@@ -70,37 +92,8 @@ const LeaderBoard = () => {
     return () => clearInterval(refreshInterval);
   }, []);
 
-  useEffect(() => {
-    const checkTheme = async () => {
-      try {
-        const savedTheme = await AsyncStorage.getItem('theme');
-        if (savedTheme !== null) {
-          setIsDarkMode(savedTheme === 'dark');
-        } else {
-          setIsDarkMode(systemColorScheme === 'dark');
-        }
-      } catch (error) {
-        console.error('Error checking theme:', error);
-      }
-    };
-
-    checkTheme();
-    const interval = setInterval(checkTheme, 1000);
-    return () => clearInterval(interval);
-  }, [systemColorScheme]);
-
-  const loadThemePreference = async () => {
-    try {
-      const savedTheme = await AsyncStorage.getItem('theme');
-      if (savedTheme) {
-        setIsDarkMode(savedTheme === 'dark');
-      }
-    } catch (error) {
-      console.error('Error loading theme:', error);
-    }
-  };
-
   const loadInitialData = async () => {
+    setLoading(true);
     try {
       await Promise.all([
         loadUserPoints(),
@@ -108,7 +101,9 @@ const LeaderBoard = () => {
       ]);
     } catch (error) {
       console.error('Error loading initial data:', error);
-      Alert.alert('Error', 'Failed to load initial data. Please try again.');
+      setError('Failed to load leaderboard data');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -139,7 +134,7 @@ const LeaderBoard = () => {
       if (refresh) {
         setPage(1);
         setHasMore(true);
-        setLoading(true);
+        setRefreshing(true);
       } else {
         setIsLoadingMore(true);
       }
@@ -157,32 +152,40 @@ const LeaderBoard = () => {
         avatar: player.avatar || '/api/placeholder/40/40',
         rank: index + 1,
         isCurrentUser: player.id === currentUserId,
-        animValue: new Animated.Value(1), // Start visible
+        animValue: new Animated.Value(1),
       }));
 
       console.log('[DEBUG] Setting players:', newPlayers);
       if (refresh) {
         setPlayers(newPlayers);
       } else {
-        setPlayers(prev => [...prev, ...newPlayers]);
+        setPlayers(prev => [...prev, ...newPlayers.filter(np => !prev.some(p => p.id === np.id))]);
       }
 
       setHasMore(topUsers.length > ITEMS_PER_PAGE * page);
 
-      // Ensure visibility on load
       if (flatListRef.current && refresh) {
         flatListRef.current.scrollToOffset({ offset: 0, animated: false });
       }
-
     } catch (error) {
       console.error('[ERROR] Error loading leaderboard:', error);
-      Alert.alert('Error', 'Failed to load leaderboard data. Please try again.');
+      setError('Failed to load leaderboard data');
     } finally {
       setLoading(false);
       setRefreshing(false);
       setIsLoadingMore(false);
     }
   };
+
+  const toggleTheme = useCallback(async () => {
+    try {
+      const newTheme = !isDarkMode;
+      setIsDarkMode(newTheme);
+      await AsyncStorage.setItem(STORAGE_KEYS.THEME, newTheme ? "dark" : "light");
+    } catch (error) {
+      console.error("Theme toggle error:", error);
+    }
+  }, [isDarkMode]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
@@ -197,7 +200,6 @@ const LeaderBoard = () => {
   }, [loading, isLoadingMore, hasMore]);
 
   const renderItem = useCallback(({ item, index }) => {
-    console.log('[DEBUG] Rendering item:', item.name, 'at index:', index);
     const inputRange = [
       -1,
       0,
@@ -254,7 +256,7 @@ const LeaderBoard = () => {
           type="title"
           style={[
             styles.headerText,
-            { color: isDarkMode ? '#FFFFFF' : '#000000' }
+            { color: isDarkMode ? '#FFFFFF' : colors.text }
           ]}
         >
           Your Stats
@@ -262,13 +264,13 @@ const LeaderBoard = () => {
         <View style={styles.statsContainer}>
           <View style={styles.statItemContainer}>
             <View style={styles.iconContainer}>
-              <FontAwesome name="star" size={24} color={isDarkMode ? '#FFFFFF' : '#000000'} />
+              <FontAwesome name="star" size={24} color={isDarkMode ? '#FFFFFF' : colors.icon} />
             </View>
             <View style={styles.textContainer}>
               <ThemedText
                 style={[
                   styles.points,
-                  { color: isDarkMode ? '#FFFFFF' : '#000000' }
+                  { color: isDarkMode ? '#FFFFFF' : colors.text }
                 ]}
               >
                 {userPoints}
@@ -276,7 +278,7 @@ const LeaderBoard = () => {
               <ThemedText
                 style={[
                   styles.statLabel,
-                  { color: isDarkMode ? '#FFFFFF' : '#000000' }
+                  { color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary }
                 ]}
               >
                 Points
@@ -284,17 +286,19 @@ const LeaderBoard = () => {
             </View>
           </View>
 
-          <View style={[styles.statDivider, { backgroundColor: isDarkMode ? '#FFFFFF' : '#000000', opacity: 0.2 }]} />
+          <View style={[styles.statDivider, { 
+            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : colors.border 
+          }]} />
 
           <View style={styles.statItemContainer}>
             <View style={styles.iconContainer}>
-              <FontAwesome name="trophy" size={24} color={isDarkMode ? '#FFFFFF' : '#000000'} />
+              <FontAwesome name="trophy" size={24} color={isDarkMode ? '#FFFFFF' : colors.icon} />
             </View>
             <View style={styles.textContainer}>
               <ThemedText
                 style={[
                   styles.points,
-                  { color: isDarkMode ? '#FFFFFF' : '#000000' }
+                  { color: isDarkMode ? '#FFFFFF' : colors.text }
                 ]}
               >
                 #{userRank || '-'}
@@ -302,7 +306,7 @@ const LeaderBoard = () => {
               <ThemedText
                 style={[
                   styles.statLabel,
-                  { color: isDarkMode ? '#FFFFFF' : '#000000' }
+                  { color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary }
                 ]}
               >
                 Rank
@@ -315,39 +319,66 @@ const LeaderBoard = () => {
   ), [colors, userPoints, userRank, headerScale, isDarkMode]);
 
   const renderEmpty = useCallback(() => (
-    <View style={styles.emptyContainer}>
-      <FontAwesome name="trophy" size={48} color={colors.icon} />
-      <ThemedText style={styles.emptyText}>No players found</ThemedText>
+    <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
+      <FontAwesome 
+        name="trophy" 
+        size={48} 
+        color={isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.icon} 
+      />
+      <ThemedText 
+        style={[
+          styles.emptyText, 
+          { color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary }
+        ]}
+      >
+        {error || "No players found"}
+      </ThemedText>
     </View>
-  ), [colors]);
+  ), [colors, error, isDarkMode]);
 
   const renderFooter = useCallback(() => {
     if (!hasMore) return null;
     return (
       <View style={styles.footer}>
-        <ActivityIndicator color={colors.tint} />
-        <ThemedText style={styles.footerText}>Loading more players...</ThemedText>
+        <ActivityIndicator color={isDarkMode ? '#FFFFFF' : colors.tint} />
+        <ThemedText 
+          style={[
+            styles.footerText,
+            { color: isDarkMode ? '#FFFFFF' : colors.text }
+          ]}
+        >
+          Loading more players...
+        </ThemedText>
       </View>
     );
-  }, [hasMore, colors]);
+  }, [hasMore, colors, isDarkMode]);
 
   const keyExtractor = useCallback((item) => item.id, []);
 
   if (loading && !refreshing) {
     return (
-      <ThemedView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.tint} />
-        <ThemedText style={styles.loadingText}>Loading leaderboard...</ThemedText>
+      <ThemedView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={isDarkMode ? '#FFFFFF' : colors.tint} />
+        <ThemedText 
+          style={[
+            styles.loadingText,
+            { color: isDarkMode ? '#FFFFFF' : colors.text }
+          ]}
+        >
+          Loading leaderboard...
+        </ThemedText>
       </ThemedView>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
       <Header
         title="Leaderboard"
         onProfilePress={() => console.log('Profile icon pressed')}
         style={{ backgroundColor: colors.background }}
+        textColor={isDarkMode ? '#FFFFFF' : colors.text}
+        iconColor={isDarkMode ? '#FFFFFF' : colors.tint}
       />
       <AnimatedFlatList
         ref={flatListRef}
@@ -359,18 +390,19 @@ const LeaderBoard = () => {
         ListFooterComponent={renderFooter}
         contentContainerStyle={[
           styles.listContainer,
-          { minHeight: '100%' }, // Ensure content fills screen
+          { minHeight: '100%' },
         ]}
-        initialScrollIndex={0} // Start at top
-        extraData={players} // Force re-render on data change
+        initialScrollIndex={0}
+        extraData={players}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={colors.tint}
-            colors={[colors.tint]}
+            tintColor={isDarkMode ? '#FFFFFF' : colors.tint}
+            colors={[isDarkMode ? '#FFFFFF' : colors.tint]}
+            progressBackgroundColor={colors.card}
           />
         }
         onScroll={Animated.event(
@@ -378,7 +410,7 @@ const LeaderBoard = () => {
           { useNativeDriver: true }
         )}
         scrollEventThrottle={16}
-        removeClippedSubviews={false} // Prevent clipping
+        removeClippedSubviews={false}
         maxToRenderPerBatch={10}
         windowSize={10}
         initialNumToRender={10}
@@ -462,14 +494,9 @@ const styles = StyleSheet.create({
     width: 1,
     height: 80,
     marginHorizontal: 15,
-    opacity: 0.2,
   },
   listContainer: {
     paddingBottom: 20,
-  },
-  emptyList: {
-    flexGrow: 1,
-    justifyContent: 'center',
   },
   emptyContainer: {
     flex: 1,
