@@ -9,7 +9,11 @@ import {
   Platform,
   useColorScheme,
   ActivityIndicator,
+  Image,
 } from 'react-native';
+
+// Add image prefetching and caching
+Image.prefetch = Image.prefetch || function() { return Promise.resolve(); };
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -17,6 +21,7 @@ import Header from '@/components/Header';
 import AchievementItem from '@/components/ui/AchievementItem';
 import { FontAwesome } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
+import { PointsProvider } from '../PointsContext';
 
 const REFRESH_INTERVAL = 300000; // 5 minutes
 const ANIMATION_DELAY = 100;
@@ -28,54 +33,65 @@ const STORAGE_KEYS = {
 const MOCK_ACHIEVEMENTS = [
   {
     id: '1',
-    title: 'First Steps',
-    description: 'Complete your first STEM challenge',
-    imageUrl: '/api/placeholder/64/64',
+    title: 'Epic Pioneer',
+    description: 'Get your first epic card!',
+    imageUrl: require('@/assets/images/Achievements/FirstEpicCard.png'),
     points: 100,
     progress: 1,
     total: 1,
     completed: true,
     dateCompleted: '2025-02-20',
     type: 'milestone',
-    rarity: 'common',
+    rarity: 'epic'
   },
   {
     id: '2',
-    title: 'Science Explorer',
-    description: 'Complete 5 science experiments',
-    imageUrl: '/api/placeholder/64/64',
+    title: 'STEM Scholar',
+    description: 'Collect 1 card from each category!',
+    imageUrl: require('@/assets/images/Achievements/CardCollector.png'),
     points: 250,
     progress: 3,
     total: 5,
     completed: false,
     type: 'progress',
-    rarity: 'rare',
+    rarity: 'rare'
   },
   {
     id: '3',
-    title: 'Math Master',
-    description: 'Score perfect in 3 math challenges',
-    imageUrl: '/api/placeholder/64/64',
+    title: 'Point Prodigy',
+    description: 'Get 500 points!',
+    imageUrl: require('@/assets/images/Achievements/PointsMaster.png'),
     points: 500,
-    progress: 2,
-    total: 3,
+    progress: 350,
+    total: 500,
     completed: false,
     type: 'progress',
-    rarity: 'epic',
+    rarity: 'epic'
   },
   {
     id: '4',
-    title: 'Tech Wizard',
-    description: 'Build your first app',
-    imageUrl: '/api/placeholder/64/64',
+    title: 'Prize Pioneer',
+    description: 'Redeem your first prize!',
+    imageUrl: require('@/assets/images/Achievements/PrizeRedeemer.png'),
     points: 1000,
-    progress: 1,
+    progress: 0,
     total: 1,
-    completed: true,
-    dateCompleted: '2025-02-19',
+    completed: false,
     type: 'milestone',
-    rarity: 'legendary',
+    rarity: 'legendary'
   },
+  {
+    id: '5',
+    title: 'Top Scientist',
+    description: 'Be in the top 10 on the leaderboard!',
+    imageUrl: require('@/assets/images/Achievements/LeaderboardStar.png'),
+    points: 1500,
+    progress: 0,
+    total: 1,
+    completed: false,
+    type: 'milestone',
+    rarity: 'legendary'
+  }
 ];
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
@@ -143,120 +159,143 @@ const Achievements = () => {
       }
       itemAnimations.clear();
     };
-  }, [])
-    const initializeApp = async () => {
-      try {
-        await Promise.all([
-          loadThemePreference(),
-          loadInitialData(),
-        ]);
+  }, []);
 
-        refreshInterval.current = setInterval(() => {
-          if (!refreshing && isMounted.current) {
-            loadAchievements(true);
-          }
-        }, REFRESH_INTERVAL);
-      } catch (error) {
-        console.error('Initialization error:', error);
-        setError('Failed to initialize app');
-      }
-    };
+  const initializeApp = async () => {
+    try {
+      await Promise.all([
+        loadThemePreference(),
+        loadInitialData(),
+      ]);
 
-    const loadThemePreference = async () => {
-      try {
-        const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
-        if (savedTheme && isMounted.current) {
-          setIsDarkMode(savedTheme === 'dark');
+      refreshInterval.current = setInterval(() => {
+        if (!refreshing && isMounted.current) {
+          loadAchievements(true);
         }
-      } catch (error) {
-        console.error('Theme loading error:', error);
-      }
-    };
+      }, REFRESH_INTERVAL);
+    } catch (error) {
+      console.error('Initialization error:', error);
+      setError('Failed to initialize app');
+    }
+  };
 
-    const loadInitialData = async () => {
-      try {
-        await Promise.all([
-          loadAchievements(true),
-          loadUserStats(),
-        ]);
-      } catch (error) {
-        console.error('Initial data loading error:', error);
-        setError('Failed to load initial data');
+  const loadThemePreference = async () => {
+    try {
+      const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
+      if (savedTheme && isMounted.current) {
+        setIsDarkMode(savedTheme === 'dark');
       }
-    };
+    } catch (error) {
+      console.error('Theme loading error:', error);
+    }
+  };
 
-    const loadUserStats = async () => {
-      try {
-        const savedStats = await AsyncStorage.getItem(STORAGE_KEYS.STATS);
-        if (savedStats && isMounted.current) {
-          setStats(JSON.parse(savedStats));
-        }
-      } catch (error) {
-        console.error('Stats loading error:', error);
-        setError('Failed to load user stats');
+  const loadInitialData = async () => {
+    try {
+      await Promise.all([
+        loadAchievements(true),
+        loadUserStats(),
+      ]);
+    } catch (error) {
+      console.error('Initial data loading error:', error);
+      setError('Failed to load initial data');
+    }
+  };
+
+  const loadUserStats = async () => {
+    try {
+      const savedStats = await AsyncStorage.getItem(STORAGE_KEYS.STATS);
+      if (savedStats && isMounted.current) {
+        setStats(JSON.parse(savedStats));
       }
-    };
+    } catch (error) {
+      console.error('Stats loading error:', error);
+      setError('Failed to load user stats');
+    }
+  };
 
-    const animateItems = useCallback((items) => {
-      const animations = items.map((item, index) => {
-        if (!itemAnimations.has(item.id)) {
-          itemAnimations.set(item.id, new Animated.Value(0));
-        }
-        return Animated.spring(itemAnimations.get(item.id), {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          delay: index * ANIMATION_DELAY,
-          useNativeDriver: true,
-        });
+  const animateItems = useCallback((items) => {
+    const animations = items.map((item, index) => {
+      if (!itemAnimations.has(item.id)) {
+        itemAnimations.set(item.id, new Animated.Value(0));
+      }
+      return Animated.spring(itemAnimations.get(item.id), {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        delay: index * ANIMATION_DELAY,
+        useNativeDriver: true,
       });
+    });
 
-      Animated.stagger(ANIMATION_DELAY, animations).start();
-    }, []);
+    Animated.stagger(ANIMATION_DELAY, animations).start();
+  }, []);
 
-    const loadAchievements = async (refresh = false) => {
-      try {
-        if (refresh) {
-          setError(null);
-        }
-        setLoading(true);
-
-        // Simulated API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        if (isMounted.current) {
-          setAchievements(MOCK_ACHIEVEMENTS);
-          animateItems(MOCK_ACHIEVEMENTS);
-
-          // Update stats
-          const completed = MOCK_ACHIEVEMENTS.filter(a => a.completed).length;
-          const totalPoints = MOCK_ACHIEVEMENTS.reduce((sum, a) =>
-            sum + (a.completed ? a.points : 0), 0);
-          const newStats = {
-            completed,
-            total: MOCK_ACHIEVEMENTS.length,
-            points: totalPoints,
-          };
-          setStats(newStats);
-          await AsyncStorage.setItem(STORAGE_KEYS.STATS, JSON.stringify(newStats));
-        }
-
-      } catch (error) {
-        console.error('Achievements loading error:', error);
-        setError('Failed to load achievements');
-        Alert.alert('Error', 'Failed to load achievements. Please try again.');
-      } finally {
-        if (isMounted.current) {
-          setLoading(false);
-          setRefreshing(false);
-        }
+  const loadAchievements = async (refresh = false) => {
+    try {
+      if (refresh) {
+        setError(null);
       }
-    };
+      setLoading(true);
 
-    const handleRefresh = useCallback(() => {
-      setRefreshing(true);
-      loadAchievements(true);
-    }, []);
+      // Simulated API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      if (isMounted.current) {
+        // Prefetch images for better loading performance
+        const prefetchPromises = MOCK_ACHIEVEMENTS
+          .filter(achievement => achievement.imageUrl)
+          .map(achievement => {
+            // For require'd images, no prefetching needed
+            if (typeof achievement.imageUrl === 'number') {
+              return Promise.resolve();
+            }
+            // For URLs, prefetch if it's a string URL
+            if (typeof achievement.imageUrl === 'string' &&
+                achievement.imageUrl.startsWith('http')) {
+              return Image.prefetch(achievement.imageUrl).catch(err => {
+                console.warn('Failed to prefetch:', achievement.imageUrl, err);
+                return Promise.resolve();
+              });
+            }
+            return Promise.resolve();
+          });
+
+        // Wait for all prefetches to complete or fail
+        await Promise.all(prefetchPromises);
+
+        setAchievements(MOCK_ACHIEVEMENTS);
+        animateItems(MOCK_ACHIEVEMENTS);
+
+        // Update stats
+        const completed = MOCK_ACHIEVEMENTS.filter(a => a.completed).length;
+        const totalPoints = MOCK_ACHIEVEMENTS.reduce((sum, a) =>
+          sum + (a.completed ? a.points : 0), 0);
+        const newStats = {
+          completed,
+          total: MOCK_ACHIEVEMENTS.length,
+          points: totalPoints,
+        };
+        setStats(newStats);
+        await AsyncStorage.setItem(STORAGE_KEYS.STATS, JSON.stringify(newStats));
+      }
+
+    } catch (error) {
+      console.error('Achievements loading error:', error);
+      setError('Failed to load achievements');
+      Alert.alert('Error', 'Failed to load achievements. Please try again.');
+    } finally {
+      if (isMounted.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  };
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadAchievements(true);
+  }, []);
 
     const handleRedeem = useCallback(async (achievement) => {
       if (!achievement.completed) {
@@ -306,68 +345,72 @@ const Achievements = () => {
           style={{
             transform: [{ scale }],
             opacity: scale,
+            width: '100%',
+            alignItems: 'center',
           }}
         >
           <AchievementItem
-            {...item}
+            title={item.title}
+            description={item.description}
+            imageUrl={item.imageUrl}
+            points={item.points}
+            completed={item.completed}
+            progress={item.progress}
+            total={item.total}
+            rarity={item.rarity}
             onRedeem={() => handleRedeem(item)}
-            style={{
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            }}
-            textColor={colors.text}
-            accentColor={colors.tint}
           />
         </Animated.View>
       );
-    }, [colors, handleRedeem])
-    const renderHeader = useCallback(() => (
-      <Animated.View
-        style={[
-          styles.statsContainer,
-          {
-            backgroundColor: colors.card,
-            transform: [{
-              translateY: scrollY.interpolate({
-                inputRange: [-100, 0, 100],
-                outputRange: [50, 0, -50],
-                extrapolate: 'clamp',
-              }),
-            }],
-          },
-        ]}
-      >
-        <View style={styles.statItem}>
-          <FontAwesome name="trophy" size={24} color={colors.tint} />
-          <ThemedText style={[styles.statValue, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
-            {stats.completed}
-          </ThemedText>
-          <ThemedText style={[styles.statLabel, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
-            Completed
-          </ThemedText>
-        </View>
-        <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-        <View style={styles.statItem}>
-          <FontAwesome name="star" size={24} color={colors.tint} />
-          <ThemedText style={[styles.statValue, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
-            {stats.points}
-          </ThemedText>
-          <ThemedText style={[styles.statLabel, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
-            Points
-          </ThemedText>
-        </View>
-        <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-        <View style={styles.statItem}>
-          <FontAwesome name="tasks" size={24} color={colors.tint} />
-          <ThemedText style={[styles.statValue, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
-            {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}%
-          </ThemedText>
-          <ThemedText style={[styles.statLabel, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
-            Progress
-          </ThemedText>
-        </View>
-      </Animated.View>
-    ), [colors, stats, scrollY, isDarkMode]);
+    }, [handleRedeem]);
+
+  const renderHeader = useCallback(() => (
+    <Animated.View
+      style={[
+        styles.statsContainer,
+        {
+          backgroundColor: colors.card,
+          transform: [{
+            translateY: scrollY.interpolate({
+              inputRange: [-100, 0, 100],
+              outputRange: [50, 0, -50],
+              extrapolate: 'clamp',
+            }),
+          }],
+        },
+      ]}
+    >
+      <View style={styles.statItem}>
+        <FontAwesome name="trophy" size={24} color={colors.tint} />
+        <ThemedText style={[styles.statValue, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
+          {stats.completed}
+        </ThemedText>
+        <ThemedText style={[styles.statLabel, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
+          Completed
+        </ThemedText>
+      </View>
+      <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+      <View style={styles.statItem}>
+        <FontAwesome name="star" size={24} color={colors.tint} />
+        <ThemedText style={[styles.statValue, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
+          {stats.points}
+        </ThemedText>
+        <ThemedText style={[styles.statLabel, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
+          Points
+        </ThemedText>
+      </View>
+      <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+      <View style={styles.statItem}>
+        <FontAwesome name="tasks" size={24} color={colors.tint} />
+        <ThemedText style={[styles.statValue, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
+          {stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0}%
+        </ThemedText>
+        <ThemedText style={[styles.statLabel, { color: isDarkMode ? '#FFFFFF' : colors.text }]}>
+          Progress
+        </ThemedText>
+      </View>
+    </Animated.View>
+  ), [colors, stats, scrollY, isDarkMode]);
 
   const renderEmpty = useCallback(() => (
     <View style={styles.emptyContainer}>
@@ -392,6 +435,7 @@ const Achievements = () => {
   }
 
   return (
+    <PointsProvider>
     <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
       <Header
         title="Achievements"
@@ -401,39 +445,52 @@ const Achievements = () => {
         iconColor={colors.tint}
       />
 
-      <AnimatedFlatList
-        data={achievements}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={renderEmpty}
-        contentContainerStyle={[
-          styles.listContainer,
-          achievements.length === 0 && styles.emptyList,
-          { backgroundColor: colors.background }
-        ]}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-        scrollEventThrottle={16}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.tint}
-            colors={[colors.tint]}
-            progressBackgroundColor={colors.card}
-          />
-        }
-        ListFooterComponent={<View style={[styles.listFooter, { backgroundColor: colors.background }]} />}
-        removeClippedSubviews={Platform.OS !== 'web'}
-        maxToRenderPerBatch={5}
-        windowSize={5}
-        initialNumToRender={10}
-        onScrollToIndexFailed={() => {}}
-      />
+        <AnimatedFlatList
+          data={achievements}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={renderEmpty}
+          contentContainerStyle={[
+            styles.listContainer,
+            achievements.length === 0 && styles.emptyList,
+            { backgroundColor: colors.background }
+          ]}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+          scrollEventThrottle={16}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.tint}
+              colors={[colors.tint]}
+              progressBackgroundColor={colors.card}
+            />
+          }
+          ListFooterComponent={<View style={styles.listFooter} />}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={3}
+          updateCellsBatchingPeriod={50}
+          windowSize={7}
+          initialNumToRender={5}
+          onEndReachedThreshold={0.5}
+          maintainVisibleContentPosition={{
+            minIndexForVisible: 0,
+            autoscrollToTopThreshold: 10,
+          }}
+          onScrollToIndexFailed={() => {}}
+          showsVerticalScrollIndicator={false}
+          getItemLayout={(data, index) => ({
+            length: 170, // Approximate height of each item
+            offset: 170 * index,
+            index,
+          })}
+        />
     </ThemedView>
+    </PointsProvider>
   );
 };
 
@@ -463,6 +520,7 @@ const styles = StyleSheet.create({
   },
   statItem: {
     alignItems: 'center',
+    padding: 8,
   },
   statValue: {
     fontSize: 24,
@@ -480,6 +538,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   listFooter: {
     height: 48,

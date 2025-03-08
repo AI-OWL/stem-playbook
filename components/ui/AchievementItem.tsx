@@ -1,29 +1,128 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState } from "react";
+import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
+import { FontAwesome } from "@expo/vector-icons";
+import { usePoints } from "../../app/PointsContext";
 
 interface AchievementItemProps {
   title: string;
   description: string;
-  imageUrl?: string; // Optional image prop
+  imageUrl?: string;
+  points: number;
+  completed: boolean;
+  progress: number;
+  total: number;
+  rarity: "common" | "rare" | "epic" | "legendary";
   onRedeem: () => void;
 }
 
-const AchievementItem: React.FC<AchievementItemProps> = ({ title, description, imageUrl, onRedeem }) => {
+const rarityColors = {
+  common: "#A0A0A0",
+  rare: "#3B82F6",
+  epic: "#8B5CF6",
+  legendary: "#F59E0B",
+};
+
+const AchievementItem: React.FC<AchievementItemProps> = ({
+  title,
+  description,
+  imageUrl,
+  points,
+  completed,
+  progress,
+  total,
+  rarity,
+  onRedeem,
+}) => {
+  const { redeemAchievement, isAchievementRedeemed } = usePoints(); //This line is crucial and should work correctly within the PointsProvider
+  const [redeemed, setRedeemed] = useState(false);
+  const progressPercentage = (progress / total) * 100;
+
+  const handleRedeem = () => {
+    if (completed && !redeemed) {
+      redeemAchievement(title, points);
+      setRedeemed(true);
+      if (onRedeem) onRedeem();
+    }
+  };
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { borderColor: rarityColors[rarity] }]}>
       <View style={styles.imageContainer}>
         {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.image} />
+          <Image
+            source={typeof imageUrl === 'number' ? imageUrl : (typeof imageUrl === 'string' ? { uri: imageUrl } : null)}
+            style={styles.image}
+            resizeMode="contain"
+          />
         ) : (
-          <View style={styles.placeholder} />
+          <View
+            style={[
+              styles.placeholder,
+              { backgroundColor: rarityColors[rarity] + "20" },
+            ]}
+          >
+            <FontAwesome name="trophy" size={32} color={rarityColors[rarity]} />
+          </View>
         )}
+        <View
+          style={[
+            styles.rarityBadge,
+            { backgroundColor: rarityColors[rarity] },
+          ]}
+        >
+          <Text style={styles.rarityText}>{rarity}</Text>
+        </View>
       </View>
+
       <View style={styles.content}>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.description}>{description}</Text>
-        <TouchableOpacity style={styles.button} onPress={onRedeem}>
-          <Text style={styles.buttonText}>Redeem Points</Text>
-        </TouchableOpacity>
+
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${progressPercentage}%`,
+                  backgroundColor: rarityColors[rarity],
+                },
+              ]}
+            />
+          </View>
+          <Text style={styles.progressText}>{`${progress}/${total}`}</Text>
+        </View>
+
+        <View style={styles.bottomContainer}>
+          <Text style={styles.points}>{points} Points</Text>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              !completed && styles.buttonDisabled,
+              redeemed && styles.buttonRedeemed
+            ]}
+            onPress={handleRedeem}
+            disabled={!completed || redeemed}
+          >
+            <Text
+              style={[
+                styles.buttonText,
+                !completed && styles.buttonTextDisabled,
+                redeemed && styles.buttonTextRedeemed
+              ]}
+            >
+              {redeemed ? "Redeemed" : "Redeem"}
+            </Text>
+            {completed && !redeemed && (
+              <FontAwesome
+                name="exclamation-circle"
+                size={16}
+                color="#F59E0B"
+                style={styles.exclamation}
+              />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -31,63 +130,124 @@ const AchievementItem: React.FC<AchievementItemProps> = ({ title, description, i
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 12,
-    marginVertical: 10,
-    marginHorizontal: 20,
-    shadowColor: '#000',
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 8,
+    marginHorizontal: 16,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 4,
-    alignItems: 'center',
-    width: 200, // Approximate width from the image
+    borderWidth: 2,
+    width: "100%",
+    maxWidth: 400,
   },
   imageContainer: {
-    alignItems: 'center',
-    marginBottom: 10,
-    width: '100%',
-    height: 100,
-    backgroundColor: '#E0E0E0',
+    position: "relative",
+    alignItems: "center",
+    marginBottom: 12,
+    width: "100%",
+    height: 120,
     borderRadius: 8,
-    justifyContent: 'center',
+    overflow: "hidden",
   },
   image: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderRadius: 8,
   },
   placeholder: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderRadius: 8,
-    backgroundColor: '#E0E0E0', // Grey placeholder
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  rarityBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  rarityText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
+    textTransform: "capitalize",
   },
   content: {
-    alignItems: 'center',
+    width: "100%",
   },
   title: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 4,
   },
   description: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 12,
+  },
+  progressContainer: {
+    marginBottom: 12,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  progressText: {
     fontSize: 12,
-    color: '#555',
-    textAlign: 'center',
+    color: "#666",
     marginTop: 4,
+    textAlign: "right",
+  },
+  bottomContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  points: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#374151",
   },
   button: {
-    marginTop: 10,
-    backgroundColor: '#E5E7EB',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#3B82F6",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  buttonDisabled: {
+    backgroundColor: "#E5E7EB",
+  },
+  buttonRedeemed: {
+    backgroundColor: "#4CAF50",
   },
   buttonText: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#000',
+    fontWeight: "bold",
+    color: "white",
+  },
+  buttonTextDisabled: {
+    color: "#9CA3AF",
+  },
+  buttonTextRedeemed: {
+    color: "white",
+  },
+  exclamation: {
+    marginLeft: 8,
   },
 });
 

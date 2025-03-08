@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  useRef,
-} from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   StyleSheet,
   View,
@@ -15,6 +9,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Dimensions,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedText } from "@/components/ThemedText";
@@ -24,87 +19,51 @@ import StemCard from "@/components/StemCard";
 import CardModal from "@/components/CardModal";
 import { Colors } from "@/constants/Colors";
 import { FontAwesome } from "@expo/vector-icons";
+import { CARD_DETAILS } from "@/app/data/cardData";
 
 const REFRESH_INTERVAL = 300000; // 5 minutes
 const ANIMATION_DURATION = 300;
-const GRID_GAP = 12;
-const CARD_WIDTH_PERCENTAGE = 48;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const PADDING = 16;
+const CARD_MARGIN = 8;
 const STORAGE_KEYS = {
   THEME: "theme",
   CATEGORIES: "categories",
 };
 
-// Mock data with correct image paths using require
-const MOCK_CATEGORIES = [
-  {
-    title: "Science",
-    data: [
-      {
-        id: "s1",
-        imageUrl: require("../../assets/cards/Science/Layla _Joseph FRONT.png"),
-        collected: true,
-        rarity: "epic"
-      },
-      {
-        id: "s2",
-        imageUrl: require("../../assets/cards/Science/VICTORIA EL-HAYEK front.png"),
-        collected: true,
-        rarity: "rare"
-      },
-    ],
-  },
-  {
-    title: "Technology",
-    data: [
-      {
-        id: "t1",
-        imageUrl: require("../../assets/cards/Technology/Leon Wilson front.png"),
-        collected: true,
-        rarity: "common"
-      },
-      {
-        id: "t2",
-        imageUrl: require("../../assets/cards/Default.png"),
-        collected: false,
-        rarity: "common"
-      },
-    ],
-  },
-  {
-    title: "Engineering",
-    data: [
-      {
-        id: "e1",
-        imageUrl: require("../../assets/cards/Engineering/aayliahbrownfront.png"),
-        collected: true,
-        rarity: "rare"
-      },
-      {
-        id: "e2",
-        imageUrl: require("../../assets/cards/Engineering/grady burrows front.png"),
-        collected: true,
-        rarity: "common"
-      },
-    ],
-  },
-  {
-    title: "Mathematics",
-    data: [
-      {
-        id: "m1",
-        imageUrl: require("../../assets/cards/Default.png"),
-        collected: false,
-        rarity: "common"
-      },
-      {
-        id: "m2",
-        imageUrl: require("../../assets/cards/Default.png"),
-        collected: false,
-        rarity: "common"
-      },
-    ],
-  },
-];
+// Function to generate categories dynamically from cardData
+const generateCategories = () => {
+  const categoryMap = {
+    'Science': [],
+    'Technology': [],
+    'Engineering': [],
+    'Mathematics': []
+  };
+
+  // Process each card in CARD_DETAILS
+  Object.entries(CARD_DETAILS).forEach(([id, card]) => {
+    // Use the card's category field
+    const category = card.category || 'Uncategorized';
+
+    // Only add to our defined categories
+    if (categoryMap[category] !== undefined) {
+      categoryMap[category].push({
+        id,
+        name: card.name,
+        imageUrl: card.image || require("../../assets/cards/Default.png"),
+        collected: !!card.image // If image exists, consider it collected
+      });
+    }
+  });
+
+  // Convert the map to the array structure needed for SectionList
+  return Object.entries(categoryMap)
+    .filter(([_, data]) => data.length > 0) // Only include categories with cards
+    .map(([title, data]) => ({
+      title,
+      data
+    }));
+};
 
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 
@@ -125,9 +84,8 @@ export default function Index() {
 
   const cardAnimations = useRef(new Map()).current;
   const scrollY = useRef(new Animated.Value(0)).current;
-  const refreshInterval = useRef<NodeJS.Timeout>();
+  const refreshInterval = useRef(null);
   const isMounted = useRef(true);
-  const REFRESH_INTERVAL = 15000;
 
   // Enhanced theme management
   useEffect(() => {
@@ -150,6 +108,7 @@ export default function Index() {
 
     return () => clearInterval(themeInterval);
   }, [systemColorScheme]);
+
   // Theme toggle handler
   const toggleTheme = useCallback(async () => {
     try {
@@ -164,49 +123,44 @@ export default function Index() {
     }
   }, [isDarkMode]);
 
-    useEffect(() => {
-      isMounted.current = true;
+  useEffect(() => {
+    isMounted.current = true;
 
-      const initializeApp = async () => {
-        try {
-          if (isMounted.current) {
-            setError(null);
-            setRefreshing(true);
-          }
-
-          await loadInitialData();
-
-          if (isMounted.current) {
-            refreshInterval.current = setInterval(() => {
-              if (!refreshing && isMounted.current) {
-                loadCategories(true);
-              }
-            }, REFRESH_INTERVAL);
-            setRefreshing(false);
-          }
-        } catch (error) {
-          console.error("Init error:", error);
-          if (isMounted.current) {
-            setError("Failed to initialize app");
-            setRefreshing(false);
-          }
+    const initializeApp = async () => {
+      try {
+        if (isMounted.current) {
+          setError(null);
+          setRefreshing(true);
         }
-      };
 
-      initializeApp();
+        await loadInitialData();
 
-      // Cleanup function
-      return () => {
-        isMounted.current = false;
-        if (refreshInterval.current) {
-          clearInterval(refreshInterval.current);
-          refreshInterval.current = undefined;
+        if (isMounted.current) {
+          setRefreshing(false);
         }
-        setSelectedCardId(null);
-        setSelectedCardImageUrl(null);
-        setRefreshing(false);
-      };
-    }, []);
+      } catch (error) {
+        console.error("Init error:", error);
+        if (isMounted.current) {
+          setError("Failed to initialize app");
+          setRefreshing(false);
+        }
+      }
+    };
+
+    initializeApp();
+
+    // Cleanup function
+    return () => {
+      isMounted.current = false;
+      if (refreshInterval.current) {
+        clearInterval(refreshInterval.current);
+        refreshInterval.current = null;
+      }
+      setSelectedCardId(null);
+      setSelectedCardImageUrl(null);
+      setRefreshing(false);
+    };
+  }, []);
 
   const loadInitialData = async () => {
     try {
@@ -254,15 +208,18 @@ export default function Index() {
       }
       setLoading(true);
 
-      // Simulated API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Generate dynamic categories from cardData
+      const dynamicCategories = generateCategories();
+
+      // Simulate network delay
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       if (isMounted.current) {
-        setCategories(MOCK_CATEGORIES);
-        animateCards(MOCK_CATEGORIES);
+        setCategories(dynamicCategories);
+        animateCards(dynamicCategories);
         await AsyncStorage.setItem(
           STORAGE_KEYS.CATEGORIES,
-          JSON.stringify(MOCK_CATEGORIES),
+          JSON.stringify(dynamicCategories),
         );
       }
     } catch (error) {
@@ -284,122 +241,108 @@ export default function Index() {
     loadCategories(true);
   }, []);
 
-    const handleCardPress = useCallback((card) => {
-      setSelectedCardId(card.id);
-      // Pass the entire imageUrl object since it's from require()
-      setSelectedCardImageUrl(card.imageUrl);
+  const handleCardPress = useCallback((card) => {
+    setSelectedCardId(card.id);
+    setSelectedCardImageUrl(card.imageUrl);
 
-      const animation = cardAnimations.get(card.id);
-      if (animation) {
-        Animated.sequence([
-          Animated.spring(animation, {
-            toValue: 0.95,
-            tension: 100,
-            friction: 5,
-            useNativeDriver: true,
-          }),
-          Animated.spring(animation, {
-            toValue: 1,
-            tension: 100,
-            friction: 5,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      }
-    }, []);
+    const animation = cardAnimations.get(card.id);
+    if (animation) {
+      Animated.sequence([
+        Animated.spring(animation, {
+          toValue: 0.95,
+          tension: 100,
+          friction: 5,
+          useNativeDriver: true,
+        }),
+        Animated.spring(animation, {
+          toValue: 1,
+          tension: 100,
+          friction: 5,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, []);
 
-    const renderCard = useCallback(
-      ({ item: card }) => {
-        const scale = cardAnimations.get(card.id) || new Animated.Value(1);
+  const renderSectionHeader = useCallback(
+    ({ section: { title, data } }) => {
+      const headerTranslateY = scrollY.interpolate({
+        inputRange: [-100, 0, 100],
+        outputRange: [50, 0, -50],
+        extrapolate: "clamp",
+      });
 
-        return (
-          <Animated.View
-            key={card.id}
+      const collectedCount = data.filter((card) => card.collected).length;
+
+      return (
+        <Animated.View
+          style={[
+            styles.sectionContainer,
+            {
+              transform: [{ translateY: headerTranslateY }],
+            },
+          ]}
+        >
+          <View
             style={[
-              styles.cardContainer,
+              styles.sectionHeaderContainer,
               {
-                transform: [{ scale }],
-                opacity: scale,
+                backgroundColor: colors.card,
+                borderColor: colors.border,
               },
             ]}
           >
-            <StemCard
-              imageUrl={card.imageUrl}
-              collected={card.collected}
-              rarity={card.rarity}
-              onPress={() => handleCardPress(card)}
-            />
-          </Animated.View>
-        );
-      },
-      [handleCardPress]
-    );
-    const renderSectionHeader = useCallback(
-      ({ section: { title, data } }) => {
-        const headerTranslateY = scrollY.interpolate({
-          inputRange: [-100, 0, 100],
-          outputRange: [50, 0, -50],
-          extrapolate: "clamp",
-        });
-
-        const collectedCount = data.filter((card) => card.collected).length;
-
-        return (
-          <Animated.View
-            style={[
-              styles.sectionContainer,
-              {
-                transform: [{ translateY: headerTranslateY }],
-              },
-            ]}
-          >
-            <View
+            <ThemedText
               style={[
-                styles.sectionHeaderContainer,
+                styles.sectionHeader,
+                { color: isDarkMode ? "#FFFFFF" : colors.text },
+              ]}
+            >
+              {title}
+            </ThemedText>
+            <ThemedText
+              style={[
+                styles.sectionCount,
                 {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
+                  color: isDarkMode
+                    ? "rgba(255, 255, 255, 0.7)"
+                    : colors.textSecondary,
                 },
               ]}
             >
-              <ThemedText
-                style={[
-                  styles.sectionHeader,
-                  { color: isDarkMode ? "#FFFFFF" : colors.text },
-                ]}
-              >
-                {title}
-              </ThemedText>
-              <ThemedText
-                style={[
-                  styles.sectionCount,
-                  {
-                    color: isDarkMode
-                      ? "rgba(255, 255, 255, 0.7)"
-                      : colors.textSecondary,
-                  },
-                ]}
-              >
-                {collectedCount}/{data.length} Collected
-              </ThemedText>
-            </View>
-            <View style={styles.grid}>
-              {data.map((card) => (
-                <View key={card.id} style={styles.cardWrapper}>
+              {collectedCount}/{data.length} Collected
+            </ThemedText>
+          </View>
+
+          <View style={styles.grid}>
+            {data.map((card, index) => {
+              const scale = cardAnimations.get(card.id) || new Animated.Value(1);
+
+              return (
+                <Animated.View
+                  key={card.id}
+                  style={[
+                    styles.cardWrapper,
+                    {
+                      transform: [{ scale }],
+                      opacity: scale,
+                    },
+                  ]}
+                >
                   <StemCard
                     imageUrl={card.imageUrl}
                     collected={card.collected}
-                    rarity={card.rarity}
                     onPress={() => handleCardPress(card)}
                   />
-                </View>
-              ))}
-            </View>
-          </Animated.View>
-        );
-      },
-      [colors, handleCardPress, scrollY, isDarkMode],
-    );
+                </Animated.View>
+              );
+            })}
+          </View>
+        </Animated.View>
+      );
+    },
+    [colors, handleCardPress, scrollY, isDarkMode],
+  );
 
   const renderEmpty = useCallback(
     () => (
@@ -471,7 +414,6 @@ export default function Index() {
       <AnimatedSectionList
         sections={categories}
         keyExtractor={(item) => item.id}
-        renderItem={() => null}
         renderSectionHeader={renderSectionHeader}
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={[
@@ -503,6 +445,7 @@ export default function Index() {
             style={[styles.listFooter, { backgroundColor: colors.background }]}
           />
         }
+        renderItem={() => null} // We're rendering cards in the section header
         removeClippedSubviews={Platform.OS !== "web"}
         maxToRenderPerBatch={5}
         windowSize={5}
@@ -511,26 +454,29 @@ export default function Index() {
         onScrollToIndexFailed={() => {}}
       />
 
-        <CardModal
-          visible={!!selectedCardId}
-          imageUrl={selectedCardImageUrl}
-          cardId={selectedCardId}
-          onClose={() => {
-            setSelectedCardId(null);
-            setSelectedCardImageUrl(null);
-          }}
-          isDarkMode={isDarkMode}
-          collected={selectedCardId ?
-            MOCK_CATEGORIES.some(category =>
-              category.data.some(card =>
-                card.id === selectedCardId && card.collected
+      <CardModal
+        visible={!!selectedCardId}
+        imageUrl={selectedCardImageUrl}
+        cardId={selectedCardId}
+        onClose={() => {
+          setSelectedCardId(null);
+          setSelectedCardImageUrl(null);
+        }}
+        isDarkMode={isDarkMode}
+        collected={
+          selectedCardId
+            ? categories.some((category) =>
+                category.data.some(
+                  (card) => card.id === selectedCardId && card.collected
+                )
               )
-            ) : false
-          }
-        />
+            : false
+        }
+      />
     </ThemedView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -538,6 +484,17 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 20,
+  },
+  listHeader: {
+    height: 12,
+  },
+  listFooter: {
+    height: 40,
+  },
+  emptyList: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sectionContainer: {
     marginBottom: 24,
@@ -564,11 +521,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
   },
   cardWrapper: {
-    width: '48%', // This ensures two cards per row with proper spacing
-    marginBottom: 16, // Vertical spacing between cards
+    width: '48%', // Ensures two cards per row with spacing
+    marginBottom: 16,
+  },
+  cardContainer: {
+    width: '48%',
+    marginBottom: 16,
   },
   emptyContainer: {
     flex: 1,
