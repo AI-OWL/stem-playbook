@@ -13,7 +13,6 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { usePoints } from "../app/PointsContext";
 
 const { width } = Dimensions.get("window");
 

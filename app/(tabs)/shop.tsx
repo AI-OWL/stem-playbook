@@ -24,7 +24,6 @@ import Header from "@/components/Header";
 import StoreItem from "@/components/StoreItem";
 import StoreItemModal from "@/components/StoreItemModal";
 import { Colors } from "@/constants/Colors";
-import { PointsProvider, usePoints } from "../PointsContext";
 
 const ITEMS_PER_PAGE = 10;
 const ANIMATION_DURATION = 300;
@@ -599,8 +598,6 @@ const styles = StyleSheet.create({
 });
 export default function Shop() {
   return (
-    <PointsProvider>
       <ShopContent />
-    </PointsProvider>
   );
 }
