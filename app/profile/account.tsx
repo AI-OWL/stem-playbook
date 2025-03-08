@@ -10,6 +10,7 @@ import {
   useColorScheme,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -107,114 +108,119 @@ export default function AccountDetailsScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.icon }]}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-          <Text style={[styles.backText, { color: colors.text }]}>Back</Text>
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Account Details</Text>
-        <TouchableOpacity
-          onPress={handleSave}
-          style={[styles.saveButton, !isEdited && styles.saveButtonDisabled]}
-          disabled={!isEdited}
-        >
-          <Ionicons
-            name="save-outline"
-            size={24}
-            color={isEdited ? colors.tint : colors.icon}
-          />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        style={styles.content}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={[styles.section, { backgroundColor: colors.background }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Information</Text>
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>Display Name</Text>
-            <View style={[
-              styles.inputContainer,
-              {
-                backgroundColor: colors.background,
-                borderColor: colors.icon
-              }
-            ]}>
-              <Ionicons name="person-outline" size={20} color={colors.icon} />
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                value={formData.name}
-                onChangeText={(text) => handleInputChange('name', text)}
-                placeholder="Enter your name"
-                placeholderTextColor={colors.icon}
-                returnKeyType="next"
-              />
-            </View>
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>Email Address</Text>
-            <View style={[
-              styles.inputContainer,
-              {
-                backgroundColor: colors.background,
-                borderColor: colors.icon
-              }
-            ]}>
-              <Ionicons name="mail-outline" size={20} color={colors.icon} />
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                value={formData.email}
-                onChangeText={(text) => handleInputChange('email', text)}
-                placeholder="Enter your email"
-                placeholderTextColor={colors.icon}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                returnKeyType="done"
-              />
-            </View>
-          </View>
-        </View>
-
-        <View style={[styles.section, { backgroundColor: colors.background }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Security</Text>
-
+        <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.icon }]}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+            <Text style={[styles.backText, { color: colors.text }]}>Back</Text>
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Account Details</Text>
           <TouchableOpacity
-            style={[
-              styles.securityButton,
-              {
-                borderColor: colors.tint,
-                backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(30, 64, 175, 0.1)'
-              }
-            ]}
-            onPress={() => router.push('/profile/change-password')}
+            onPress={handleSave}
+            style={[styles.saveButton, !isEdited && styles.saveButtonDisabled]}
+            disabled={!isEdited}
           >
-            <Ionicons name="lock-closed-outline" size={20} color={colors.tint} />
-            <Text style={[styles.securityButtonText, { color: colors.tint }]}>
-              Change Password
-            </Text>
             <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={colors.tint}
-              style={styles.securityButtonIcon}
+              name="save-outline"
+              size={24}
+              color={isEdited ? colors.tint : colors.icon}
             />
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+        <ScrollView
+          style={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={[styles.section, { backgroundColor: colors.background }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Information</Text>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: colors.text }]}>Display Name</Text>
+              <View style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.icon
+                }
+              ]}>
+                <Ionicons name="person-outline" size={20} color={colors.icon} />
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  value={formData.name}
+                  onChangeText={(text) => handleInputChange('name', text)}
+                  placeholder="Enter your name"
+                  placeholderTextColor={colors.icon}
+                  returnKeyType="next"
+                />
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: colors.text }]}>Email Address</Text>
+              <View style={[
+                styles.inputContainer,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.icon
+                }
+              ]}>
+                <Ionicons name="mail-outline" size={20} color={colors.icon} />
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  value={formData.email}
+                  onChangeText={(text) => handleInputChange('email', text)}
+                  placeholder="Enter your email"
+                  placeholderTextColor={colors.icon}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  returnKeyType="done"
+                />
+              </View>
+            </View>
+          </View>
+
+          <View style={[styles.section, { backgroundColor: colors.background }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Security</Text>
+
+            <TouchableOpacity
+              style={[
+                styles.securityButton,
+                {
+                  borderColor: colors.tint,
+                  backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(30, 64, 175, 0.1)'
+                }
+              ]}
+              onPress={() => router.push('/profile/change-password')}
+            >
+              <Ionicons name="lock-closed-outline" size={20} color={colors.tint} />
+              <Text style={[styles.securityButtonText, { color: colors.tint }]}>
+                Change Password
+              </Text>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={colors.tint}
+                style={styles.securityButtonIcon}
+              />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
+    flex: 1,
+  },
+  keyboardContainer: {
     flex: 1,
   },
   header: {

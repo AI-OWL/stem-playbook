@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  SafeAreaView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedText } from "@/components/ThemedText";
@@ -18,14 +19,12 @@ import StemCard from "@/components/StemCard";
 import CardModal from "@/components/CardModal";
 import { Colors } from "@/constants/Colors";
 import { FontAwesome } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
 
 import { fetchAndStoreAllCards } from "../services/cardService";
 import { getStoredUser } from "../services/userService";
 import { getWalletData, WalletCategory } from "../services/walletService";
 import { Card } from "../types";
 
-const REFRESH_INTERVAL = 300000; // 5 minutes
 const GRID_GAP = 12;
 const CARD_WIDTH_PERCENTAGE = 48;
 const STORAGE_KEYS = {
@@ -49,10 +48,8 @@ export default function Index() {
 
   const cardAnimations = useRef(new Map<string, Animated.Value>()).current;
   const scrollY = useRef(new Animated.Value(0)).current;
-  const refreshInterval = useRef<NodeJS.Timeout | null>(null);
-  const isMounted = useRef(true);
 
-  // Enhanced theme management.
+  // Theme management
   useEffect(() => {
     const checkAndUpdateTheme = async () => {
       try {
@@ -74,6 +71,31 @@ export default function Index() {
     return () => clearInterval(themeInterval);
   }, [systemColorScheme]);
 
+  // Initial data fetch
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) throw new Error("No token found");
+
+        const allCards: any = await fetchAndStoreAllCards(token);
+        const user = await getStoredUser();
+        if (!user) throw new Error("User not found");
+
+        const walletData = getWalletData(allCards, user.cardIds);
+        setCategories(walletData);
+      } catch (err) {
+        console.error("Error fetching wallet data:", err);
+        setError("Failed to load wallet data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []); // Empty dependency array means it only runs once on mount
+
   const toggleTheme = useCallback(async () => {
     try {
       const newTheme = !isDarkMode;
@@ -83,49 +105,6 @@ export default function Index() {
       console.error("Theme toggle error:", error);
     }
   }, [isDarkMode]);
-
-  // Fetch wallet data whenever this screen is focused.
-  useFocusEffect(
-    useCallback(() => {
-      const fetchData = async () => {
-        setLoading(true);
-        try {
-          // Get the auth token (assumed to be stored in AsyncStorage).
-          const token = await AsyncStorage.getItem("token");
-          if (!token) throw new Error("No token found");
-
-          // Fetch all cards from the backend.
-          const allCards: any = await fetchAndStoreAllCards(token);
-
-          // Retrieve user data from AsyncStorage (which includes the user’s cardIds).
-          const user = await getStoredUser();
-          if (!user) throw new Error("User not found");
-
-          // Process wallet data by grouping cards by category and computing the collected flag.
-          const walletData = getWalletData(allCards, user.cardIds);
-          setCategories(walletData);
-        } catch (err) {
-          console.error("Error fetching wallet data:", err);
-          setError("Failed to load wallet data");
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      fetchData();
-
-      // Set up periodic refresh (if needed).
-      refreshInterval.current = setInterval(() => {
-        fetchData();
-      }, REFRESH_INTERVAL);
-
-      return () => {
-        if (refreshInterval.current) {
-          clearInterval(refreshInterval.current);
-        }
-      };
-    }, [])
-  );
 
   const animateCards = useCallback((walletCategories: WalletCategory[]) => {
     const animations: Animated.Value[] = [];
@@ -281,61 +260,64 @@ export default function Index() {
   }
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
-      <Header
-        title="Wallet"
-        style={{ backgroundColor: colors.background }}
-        textColor={isDarkMode ? "#FFFFFF" : colors.text}
-        iconColor={isDarkMode ? "#FFFFFF" : colors.tint}
-      />
+      <ThemedView style={styles.container}>
+        <Header
+          title="Wallet"
+          style={{ backgroundColor: colors.background }}
+          textColor={isDarkMode ? "#FFFFFF" : colors.text}
+          iconColor={isDarkMode ? "#FFFFFF" : colors.tint}
+        />
 
-      <AnimatedSectionList
-        sections={categories}
-        keyExtractor={(item) => item.id}
-        renderItem={() => null}
-        renderSectionHeader={renderSectionHeader}
-        ListEmptyComponent={renderEmpty}
-        contentContainerStyle={[
-          styles.listContent,
-          categories.length === 0 && styles.emptyList,
-          { backgroundColor: colors.background },
-        ]}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
-        scrollEventThrottle={16}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={isDarkMode ? "#FFFFFF" : colors.tint}
-            colors={[isDarkMode ? "#FFFFFF" : colors.tint]}
-            progressBackgroundColor={colors.card}
-          />
-        }
-        ListHeaderComponent={<View style={[styles.listHeader, { backgroundColor: colors.background }]} />}
-        ListFooterComponent={<View style={[styles.listFooter, { backgroundColor: colors.background }]} />}
-        removeClippedSubviews={Platform.OS !== "web"}
-        maxToRenderPerBatch={5}
-        windowSize={5}
-        initialNumToRender={10}
-        stickySectionHeadersEnabled={false}
-        onScrollToIndexFailed={() => {}}
-      />
+        <AnimatedSectionList
+          sections={categories}
+          keyExtractor={(item) => item.id}
+          renderItem={() => null}
+          renderSectionHeader={renderSectionHeader}
+          ListEmptyComponent={renderEmpty}
+          contentContainerStyle={[
+            styles.listContent,
+            categories.length === 0 && styles.emptyList,
+            { backgroundColor: colors.background },
+          ]}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+          scrollEventThrottle={16}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={isDarkMode ? "#FFFFFF" : colors.tint}
+              colors={[isDarkMode ? "#FFFFFF" : colors.tint]}
+              progressBackgroundColor={colors.card}
+            />
+          }
+          ListHeaderComponent={<View style={[styles.listHeader, { backgroundColor: colors.background }]} />}
+          ListFooterComponent={<View style={[styles.listFooter, { backgroundColor: colors.background }]} />}
+          removeClippedSubviews={Platform.OS !== "web"}
+          maxToRenderPerBatch={5}
+          windowSize={5}
+          initialNumToRender={10}
+          stickySectionHeadersEnabled={false}
+          onScrollToIndexFailed={() => {}}
+        />
 
-      <CardModal
-        visible={!!selectedCardId}
-        imageUrl={selectedCardImageUrl}
-        cardId={selectedCardId}
-        onClose={() => {
-          setSelectedCardId(null);
-          setSelectedCardImageUrl(null);
-        }}
-        isDarkMode={isDarkMode}
-      />
-    </ThemedView>
+        <CardModal
+          visible={!!selectedCardId}
+          imageUrl={selectedCardImageUrl}
+          cardId={selectedCardId}
+          onClose={() => {
+            setSelectedCardId(null);
+            setSelectedCardImageUrl(null);
+          }}
+          isDarkMode={isDarkMode}
+        />
+      </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },

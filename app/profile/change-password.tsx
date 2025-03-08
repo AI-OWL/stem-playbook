@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   useColorScheme,
+  SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -262,7 +263,7 @@ export default function ChangePasswordScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.icon }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
@@ -275,12 +276,12 @@ export default function ChangePasswordScreen() {
       {step === 'verify' && renderVerifyStep()}
       {step === 'code' && renderCodeStep()}
       {step === 'change' && renderChangeStep()}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
   },
   header: {
