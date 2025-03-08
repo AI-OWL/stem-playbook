@@ -1,13 +1,13 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack, useSegments, useRouter } from 'expo-router';
+import { Stack, Redirect, useSegments, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { Provider } from 'react-redux';
+import { View } from 'react-native';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -47,54 +47,59 @@ export default function AppLayout() {
     checkAuth();
   }, [loaded]);
 
-  useEffect(() => {
-    if (authChecked) {
-      // Wait for navigation to be ready before redirecting
-      if (!isAuthenticated && segments[0] !== "login") {
-        router.replace("/login");
-      }
-    }
-  }, [authChecked, isAuthenticated, segments]);
-
-  // Show nothing until everything is loaded and auth is checked
-  if (!loaded || !authChecked) {
-    return null;
-  }
-
+  // Always render the Stack to maintain navigation context
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen
-          name="login"
-          options={{
-            headerShown: false,
-            gestureEnabled: false,
-          }}
-        />
-        <Stack.Screen
-          name="(tabs)"
-          options={{
-            headerShown: false,
-            gestureEnabled: false,
-          }}
-        />
-        <Stack.Screen
-          name="profile"
-          options={{
-            presentation: 'card',
-            headerShown: false
-          }}
-        />
-        <Stack.Screen
-          name="cardDetails/[id]"
-          options={{
-            presentation: 'modal',
-            headerShown: false
-          }}
-        />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      {/* Use a View wrapper to prevent layout issues */}
+      <View style={{ flex: 1 }}>
+        <Stack screenOptions={{ headerShown: false }}>
+          {!loaded || !authChecked ? (
+            // Show loading screen route while checking
+            <Stack.Screen
+              name="loading"
+              options={{
+                headerShown: false,
+              }}
+            />
+          ) : !isAuthenticated ? (
+            // Show login route when not authenticated
+            <Stack.Screen
+              name="login"
+              options={{
+                headerShown: false,
+                gestureEnabled: false,
+              }}
+            />
+          ) : (
+            // Show main app routes when authenticated
+            <>
+              <Stack.Screen
+                name="(tabs)"
+                options={{
+                  headerShown: false,
+                  gestureEnabled: false,
+                }}
+              />
+              <Stack.Screen
+                name="profile"
+                options={{
+                  presentation: 'card',
+                  headerShown: false
+                }}
+              />
+              <Stack.Screen
+                name="cardDetails/[id]"
+                options={{
+                  presentation: 'modal',
+                  headerShown: false
+                }}
+              />
+              <Stack.Screen name="+not-found" />
+            </>
+          )}
+        </Stack>
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      </View>
     </ThemeProvider>
   );
 }

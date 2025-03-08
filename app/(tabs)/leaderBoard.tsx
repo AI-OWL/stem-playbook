@@ -27,8 +27,11 @@ const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
 const LeaderBoard = () => {
   const systemColorScheme = useColorScheme();
-  const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === 'dark');
-  const colors = useMemo(() => Colors[isDarkMode ? 'dark' : 'light'], [isDarkMode]);
+  const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === "dark");
+  const colors = useMemo(
+    () => Colors[isDarkMode ? "dark" : "light"],
+    [isDarkMode],
+  );
 
   const [userPoints, setUserPoints] = useState(0);
   const [userRank, setUserRank] = useState<number | null>(null);
@@ -41,7 +44,7 @@ const LeaderBoard = () => {
 
   const scrollY = useMemo(() => new Animated.Value(0), []);
   const flatListRef = useRef<FlatList>(null);
-
+  
   const headerScale = useMemo(() =>
     scrollY.interpolate({
       inputRange: [-100, 0, 100],
@@ -73,14 +76,14 @@ const LeaderBoard = () => {
   useEffect(() => {
     const checkTheme = async () => {
       try {
-        const savedTheme = await AsyncStorage.getItem('theme');
+        const savedTheme = await AsyncStorage.getItem("theme");
         if (savedTheme !== null) {
-          setIsDarkMode(savedTheme === 'dark');
+          setIsDarkMode(savedTheme === "dark");
         } else {
-          setIsDarkMode(systemColorScheme === 'dark');
+          setIsDarkMode(systemColorScheme === "dark");
         }
       } catch (error) {
-        console.error('Error checking theme:', error);
+        console.error("Error checking theme:", error);
       }
     };
 
@@ -91,24 +94,21 @@ const LeaderBoard = () => {
 
   const loadThemePreference = async () => {
     try {
-      const savedTheme = await AsyncStorage.getItem('theme');
+      const savedTheme = await AsyncStorage.getItem("theme");
       if (savedTheme) {
-        setIsDarkMode(savedTheme === 'dark');
+        setIsDarkMode(savedTheme === "dark");
       }
     } catch (error) {
-      console.error('Error loading theme:', error);
+      console.error("Error loading theme:", error);
     }
   };
 
   const loadInitialData = async () => {
     try {
-      await Promise.all([
-        loadUserPoints(),
-        loadLeaderboardData(true),
-      ]);
+      await Promise.all([loadUserPoints(), loadLeaderboardData(true)]);
     } catch (error) {
-      console.error('Error loading initial data:', error);
-      Alert.alert('Error', 'Failed to load initial data. Please try again.');
+      console.error("Error loading initial data:", error);
+      Alert.alert("Error", "Failed to load initial data. Please try again.");
     }
   };
 
@@ -164,7 +164,7 @@ const LeaderBoard = () => {
       if (refresh) {
         setPlayers(newPlayers);
       } else {
-        setPlayers(prev => [...prev, ...newPlayers]);
+        setPlayers((prev) => [...prev, ...newPlayers]);
       }
 
       setHasMore(topUsers.length > ITEMS_PER_PAGE * page);
@@ -285,7 +285,6 @@ const LeaderBoard = () => {
           </View>
 
           <View style={[styles.statDivider, { backgroundColor: isDarkMode ? '#FFFFFF' : '#000000', opacity: 0.2 }]} />
-
           <View style={styles.statItemContainer}>
             <View style={styles.iconContainer}>
               <FontAwesome name="trophy" size={24} color={isDarkMode ? '#FFFFFF' : '#000000'} />
@@ -427,10 +426,10 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   statsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
     paddingHorizontal: 10,
     paddingVertical: 10,
   },

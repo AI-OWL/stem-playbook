@@ -1,24 +1,51 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState, useEffect } from "react";
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ScrollView, 
-  ActivityIndicator, 
-  Alert 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  SafeAreaView,
+  Platform,
+  StatusBar as RNStatusBar,
+  ActivityIndicator,
 } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { fetchCard } from "../services/cardService";
 import { Video, ResizeMode } from "expo-av";
+import { fetchCard } from "../services/cardService";
+import { usePoints, PointsProvider } from "../PointsContext";
 
-export default function CardDetailsScreen() {
-  const params = useLocalSearchParams();
-  // Ensure we have a string ID even if it's provided as an array.
-  const cardId: string = Array.isArray(params.id) ? params.id[0] : params.id;
-  const router = useRouter();
+const handleRedeemPoints = (
+  cardId: string,
+  setPointsRedeemed: (value: boolean) => void,
+  redeemCard: (id: string) => void
+) => {
+  Alert.alert(
+    "Redeem Points",
+    "Are you sure you want to redeem 75 points for this card?",
+    [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Yes",
+        onPress: () => {
+          redeemCard(cardId);
+          setPointsRedeemed(true);
+          Alert.alert("Success", "Points have been redeemed successfully!");
+        },
+      },
+    ]
+  );
+};
 
+function CardDetailsContent({ id, router }) {
+  const { redeemCard, isCardRedeemed } = usePoints();
+  const [pointsRedeemed, setPointsRedeemed] = useState(false);
   const [cardData, setCardData] = useState<{
     name: string;
     tagline: string;
@@ -36,14 +63,17 @@ export default function CardDetailsScreen() {
         if (!token) {
           throw new Error("No token found");
         }
-        const card = await fetchCard(cardId, token);
-        // For the details page we need name, tagline, bodyText, and videoUrl.
+        const card = await fetchCard(id as string, token);
         setCardData({
           name: card.name,
           tagline: card.tagline,
-          bodyText: card.body, // Assuming the backend property is 'body'
+          bodyText: card.body,
           videoUrl: card.videoUrl,
         });
+        // Check if this card has already been redeemed
+        if (isCardRedeemed(id as string)) {
+          setPointsRedeemed(true);
+        }
       } catch (err) {
         console.error("Error fetching card:", err);
         setError("Failed to load card details");
@@ -53,129 +83,149 @@ export default function CardDetailsScreen() {
     };
 
     loadCard();
-  }, [cardId]);
+  }, [id, isCardRedeemed]);
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#fff" />
-      </View>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (error || !cardData) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>{error || "Card not found"}</Text>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backButton}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <Text style={styles.errorText}>{error || "Card not found"}</Text>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.backButton}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Sticky Title */}
-      <View style={styles.stickyTitleContainer}>
-        <Text style={styles.name}>{cardData.name}</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="light" />
+      <View style={styles.container}>
+        <View style={styles.stickyTitleContainer}>
+          <Text style={styles.name}>{cardData.name}</Text>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.videoContainer}>
+            <Video
+              source={{ uri: cardData.videoUrl }}
+              style={styles.video}
+              useNativeControls
+              resizeMode={ResizeMode.CONTAIN}
+              isLooping
+            />
+          </View>
+
+          <Text style={styles.tagline}>{cardData.tagline}</Text>
+          <Text style={styles.description}>{cardData.bodyText}</Text>
+
+          <TouchableOpacity
+            style={[
+              styles.redeemButton,
+              pointsRedeemed && styles.redeemButtonDisabled,
+            ]}
+            onPress={() =>
+              handleRedeemPoints(id as string, setPointsRedeemed, redeemCard)
+            }
+            disabled={pointsRedeemed}
+          >
+            <Text style={styles.redeemButtonText}>
+              {pointsRedeemed ? "Points Redeemed" : "Redeem 75 Points"}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
+    </SafeAreaView>
+  );
+}
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Spacer so content doesn't overlap the sticky title */}
-        <View style={{ height: 60 }} />
+export default function CardDetailsScreen() {
+  const { id } = useLocalSearchParams();
+  const router = useRouter();
 
-        {/* Video Player */}
-        <Video
-          source={{ uri: cardData.videoUrl }}
-          style={styles.video}
-          useNativeControls
-          resizeMode={ResizeMode.CONTAIN}
-          isLooping
-        />
-
-        {/* Card Tagline */}
-        <Text style={styles.tagline}>{cardData.tagline}</Text>
-
-        {/* Card Body Text */}
-        <Text style={styles.description}>{cardData.bodyText}</Text>
-
-        {/* Redeem Button */}
-        <TouchableOpacity
-          style={styles.redeemButton}
-          onPress={() => Alert.alert("Points Redeemed!")}
-        >
-          <Text style={styles.redeemButtonText}>Redeem Points</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
+  return (
+    <PointsProvider>
+      <CardDetailsContent id={id} router={router} />
+    </PointsProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#121212",
+  },
   container: {
     flex: 1,
-    backgroundColor: "#1c1c1e",
-    paddingHorizontal: 20,
-  },
-  stickyTitleContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "#1c1c1e",
-    paddingVertical: 10,
-    alignItems: "center",
-    zIndex: 10,
+    backgroundColor: "#121212",
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  stickyTitleContainer: {
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "android" ? RNStatusBar.currentHeight + 10 : 10,
+    paddingBottom: 10,
+    backgroundColor: "#121212",
+    borderBottomWidth: 1,
+    borderBottomColor: "#333",
   },
   name: {
     fontSize: 24,
     fontWeight: "bold",
     color: "#fff",
-    textAlign: "center",
+    marginBottom: 4,
+  },
+  videoContainer: {
+    height: 250,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginVertical: 16,
   },
   video: {
-    width: "100%",
-    height: 200,
-    borderRadius: 10,
-    backgroundColor: "#000",
-    marginTop: 20,
+    flex: 1,
+    borderRadius: 12,
   },
   tagline: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#fff",
-    textAlign: "center",
-    marginTop: 20,
+    color: "#f5f5f5",
+    marginBottom: 16,
   },
   description: {
     fontSize: 16,
-    color: "#ddd",
-    textAlign: "justify",
-    marginTop: 20,
-    paddingHorizontal: 10,
     lineHeight: 24,
+    color: "#e0e0e0",
+    marginBottom: 24,
   },
   redeemButton: {
-    position: "absolute",
-    bottom: 20,
-    alignSelf: "center",
-    backgroundColor: "#ddd",
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
+    backgroundColor: "#4CAF50",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 16,
+  },
+  redeemButtonDisabled: {
+    backgroundColor: "#666",
+    opacity: 0.7,
   },
   redeemButtonText: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#333",
+    color: "#fff",
   },
   errorText: {
     color: "#fff",

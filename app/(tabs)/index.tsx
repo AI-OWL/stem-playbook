@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Dimensions,
   SafeAreaView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -19,12 +20,17 @@ import StemCard from "@/components/StemCard";
 import CardModal from "@/components/CardModal";
 import { Colors } from "@/constants/Colors";
 import { FontAwesome } from "@expo/vector-icons";
-
+import { CARD_DETAILS } from "@/app/data/cardData";
 import { fetchAndStoreAllCards } from "../services/cardService";
 import { getStoredUser } from "../services/userService";
 import { getWalletData, WalletCategory } from "../services/walletService";
 import { Card } from "../types";
 
+const REFRESH_INTERVAL = 300000; // 5 minutes
+const ANIMATION_DURATION = 300;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const PADDING = 16;
+const CARD_MARGIN = 8;
 const GRID_GAP = 12;
 const CARD_WIDTH_PERCENTAGE = 48;
 const STORAGE_KEYS = {
@@ -70,6 +76,20 @@ export default function Index() {
 
     return () => clearInterval(themeInterval);
   }, [systemColorScheme]);
+
+  // Theme toggle handler
+  const toggleTheme = useCallback(async () => {
+    try {
+      const newTheme = !isDarkMode;
+      setIsDarkMode(newTheme);
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.THEME,
+        newTheme ? "dark" : "light",
+      );
+    } catch (error) {
+      console.error("Theme toggle error:", error);
+    }
+  }, [isDarkMode]);
 
   // Initial data fetch
   useEffect(() => {
@@ -181,32 +201,7 @@ export default function Index() {
         }),
       ]).start();
     }
-  }, [cardAnimations]);
-
-  const renderCard = useCallback(
-    ({ item: card }) => {
-      const scale = cardAnimations.get(card.id) || new Animated.Value(1);
-      return (
-        <Animated.View
-          key={card.id}
-          style={[styles.cardContainer, { transform: [{ scale }], opacity: scale }]}
-        >
-          <StemCard
-            imageUrl={card.imageUrl}
-            title={card.title}
-            description={card.description}
-            rarity={card.rarity}
-            collected={card.collected}
-            style={[styles.card, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
-            textColor={isDarkMode ? "#FFFFFF" : colors.text}
-            secondaryTextColor={isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.textSecondary}
-            onPress={() => handleCardPress(card)}
-          />
-        </Animated.View>
-      );
-    },
-    [colors, handleCardPress, isDarkMode, cardAnimations]
-  );
+  }, []);
 
   const renderSectionHeader = useCallback(
     ({ section: { title, data } }) => {
@@ -215,102 +210,209 @@ export default function Index() {
         outputRange: [50, 0, -50],
         extrapolate: "clamp",
       });
-      const collectedCount = data.filter((card: any) => card.collected).length;
+
+      const collectedCount = data.filter((card) => card.collected).length;
+
       return (
-        <Animated.View style={[styles.sectionContainer, { transform: [{ translateY: headerTranslateY }] }]}>
-          <View style={[styles.sectionHeaderContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <ThemedText style={[styles.sectionHeader, { color: isDarkMode ? "#FFFFFF" : colors.text }]}>{title}</ThemedText>
-            <ThemedText style={[styles.sectionCount, { color: isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.textSecondary }]}>
+        <Animated.View
+          style={[
+            styles.sectionContainer,
+            {
+              transform: [{ translateY: headerTranslateY }],
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.sectionHeaderContainer,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.sectionHeader,
+                { color: isDarkMode ? "#FFFFFF" : colors.text },
+              ]}
+            >
+              {title}
+            </ThemedText>
+            <ThemedText
+              style={[
+                styles.sectionCount,
+                {
+                  color: isDarkMode
+                    ? "rgba(255, 255, 255, 0.7)"
+                    : colors.textSecondary,
+                },
+              ]}
+            >
               {collectedCount}/{data.length} Collected
             </ThemedText>
           </View>
+
           <View style={styles.grid}>
-            {data.map((card: any) => renderCard({ item: card }))}
+            {data.map((card, index) => {
+              const scale = cardAnimations.get(card.id) || new Animated.Value(1);
+
+              return (
+                <Animated.View
+                  key={card.id}
+                  style={[
+                    styles.cardWrapper,
+                    {
+                      transform: [{ scale }],
+                      opacity: scale,
+                    },
+                  ]}
+                >
+                  <StemCard
+                    imageUrl={card.imageUrl}
+                    collected={card.collected}
+                    onPress={() => handleCardPress(card)}
+                  />
+                </Animated.View>
+              );
+            })}
           </View>
         </Animated.View>
       );
     },
-    [colors, renderCard, scrollY, isDarkMode]
+    [colors, handleCardPress, scrollY, isDarkMode],
   );
 
-  const renderEmpty = useCallback(() => (
-    <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
-      <FontAwesome
-        name="folder-open"
-        size={48}
-        color={isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.icon}
-      />
-      <ThemedText style={[styles.emptyText, { color: isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.textSecondary }]}>
-        {error || "No cards available"}
-      </ThemedText>
-    </View>
-  ), [colors, error, isDarkMode]);
+  const renderEmpty = useCallback(
+    () => (
+      <View
+        style={[styles.emptyContainer, { backgroundColor: colors.background }]}
+      >
+        <FontAwesome
+          name="folder-open"
+          size={48}
+          color={isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.icon}
+        />
+        <ThemedText
+          style={[
+            styles.emptyText,
+            {
+              color: isDarkMode
+                ? "rgba(255, 255, 255, 0.7)"
+                : colors.textSecondary,
+            },
+          ]}
+        >
+          {error || "No cards available"}
+        </ThemedText>
+      </View>
+    ),
+    [colors, error, isDarkMode],
+  );
 
-  const renderLoading = useCallback(() => (
-    <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-      <ActivityIndicator size="large" color={isDarkMode ? "#FFFFFF" : colors.tint} />
-      <ThemedText style={[styles.loadingText, { color: isDarkMode ? "#FFFFFF" : colors.text }]}>
-        Loading cards...
-      </ThemedText>
-    </View>
-  ), [colors, isDarkMode]);
+  const renderLoading = useCallback(
+    () => (
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: colors.background },
+        ]}
+      >
+        <ActivityIndicator
+          size="large"
+          color={isDarkMode ? "#FFFFFF" : colors.tint}
+        />
+        <ThemedText
+          style={[
+            styles.loadingText,
+            { color: isDarkMode ? "#FFFFFF" : colors.text },
+          ]}
+        >
+          Loading cards...
+        </ThemedText>
+      </View>
+    ),
+    [colors, isDarkMode],
+  );
 
   if (loading && !refreshing) {
     return renderLoading();
   }
 
   return (
-      <ThemedView style={styles.container}>
-        <Header
-          title="Wallet"
-          style={{ backgroundColor: colors.background }}
-          textColor={isDarkMode ? "#FFFFFF" : colors.text}
-          iconColor={isDarkMode ? "#FFFFFF" : colors.tint}
-        />
+    <ThemedView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
+      <Header
+        title="Wallet"
+        style={{ backgroundColor: colors.background }}
+        textColor={isDarkMode ? "#FFFFFF" : colors.text}
+        iconColor={isDarkMode ? "#FFFFFF" : colors.tint}
+      />
 
-        <AnimatedSectionList
-          sections={categories}
-          keyExtractor={(item) => item.id}
-          renderItem={() => null}
-          renderSectionHeader={renderSectionHeader}
-          ListEmptyComponent={renderEmpty}
-          contentContainerStyle={[
-            styles.listContent,
-            categories.length === 0 && styles.emptyList,
-            { backgroundColor: colors.background },
-          ]}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
-          scrollEventThrottle={16}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={isDarkMode ? "#FFFFFF" : colors.tint}
-              colors={[isDarkMode ? "#FFFFFF" : colors.tint]}
-              progressBackgroundColor={colors.card}
-            />
-          }
-          ListHeaderComponent={<View style={[styles.listHeader, { backgroundColor: colors.background }]} />}
-          ListFooterComponent={<View style={[styles.listFooter, { backgroundColor: colors.background }]} />}
-          removeClippedSubviews={Platform.OS !== "web"}
-          maxToRenderPerBatch={5}
-          windowSize={5}
-          initialNumToRender={10}
-          stickySectionHeadersEnabled={false}
-          onScrollToIndexFailed={() => {}}
-        />
+      <AnimatedSectionList
+        sections={categories}
+        keyExtractor={(item) => item.id}
+        renderSectionHeader={renderSectionHeader}
+        ListEmptyComponent={renderEmpty}
+        contentContainerStyle={[
+          styles.listContent,
+          categories.length === 0 && styles.emptyList,
+          { backgroundColor: colors.background },
+        ]}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true },
+        )}
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={isDarkMode ? "#FFFFFF" : colors.tint}
+            colors={[isDarkMode ? "#FFFFFF" : colors.tint]}
+            progressBackgroundColor={colors.card}
+          />
+        }
+        ListHeaderComponent={
+          <View
+            style={[styles.listHeader, { backgroundColor: colors.background }]}
+          />
+        }
+        ListFooterComponent={
+          <View
+            style={[styles.listFooter, { backgroundColor: colors.background }]}
+          />
+        }
+        renderItem={() => null} // We're rendering cards in the section header
+        removeClippedSubviews={Platform.OS !== "web"}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        initialNumToRender={10}
+        stickySectionHeadersEnabled={false}
+        onScrollToIndexFailed={() => {}}
+      />
 
-        <CardModal
-          visible={!!selectedCardId}
-          imageUrl={selectedCardImageUrl}
-          cardId={selectedCardId}
-          onClose={() => {
-            setSelectedCardId(null);
-            setSelectedCardImageUrl(null);
-          }}
-          isDarkMode={isDarkMode}
-        />
-      </ThemedView>
+      <CardModal
+        visible={!!selectedCardId}
+        imageUrl={selectedCardImageUrl}
+        cardId={selectedCardId}
+        onClose={() => {
+          setSelectedCardId(null);
+          setSelectedCardImageUrl(null);
+        }}
+        isDarkMode={isDarkMode}
+        collected={
+          selectedCardId
+            ? categories.some((category) =>
+                category.data.some(
+                  (card) => card.id === selectedCardId && card.collected
+                )
+              )
+            : false
+        }
+      />
+    </ThemedView>
   );
 }
 
@@ -322,42 +424,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
   },
   listHeader: {
-    height: 20,
+    height: 12,
   },
   listFooter: {
-    height: 50,
+    height: 40,
   },
   emptyList: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sectionContainer: {
     marginBottom: 24,
-    paddingHorizontal: 12,
   },
   sectionHeaderContainer: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     marginBottom: 16,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderWidth: 1,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
   },
   sectionHeader: {
     fontSize: 18,
@@ -368,31 +460,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    gap: GRID_GAP,
-    paddingHorizontal: 4,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  cardWrapper: {
+    width: '48%', // Ensures two cards per row with spacing
+    marginBottom: 16,
   },
   cardContainer: {
-    width: `${CARD_WIDTH_PERCENTAGE}%`,
-    marginBottom: 12,
-  },
-  card: {
-    borderRadius: 12,
-    overflow: "hidden",
-    borderWidth: 1,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
+    width: '48%',
+    marginBottom: 16,
   },
   emptyContainer: {
     flex: 1,
