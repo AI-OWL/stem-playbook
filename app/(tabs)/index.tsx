@@ -20,7 +20,6 @@ import StemCard from "@/components/StemCard";
 import CardModal from "@/components/CardModal";
 import { Colors } from "@/constants/Colors";
 import { FontAwesome } from "@expo/vector-icons";
-import { CARD_DETAILS } from "@/app/data/cardData";
 import { fetchAndStoreAllCards } from "../services/cardService";
 import { getStoredUser } from "../services/userService";
 import { getWalletData, WalletCategory } from "../services/walletService";
@@ -76,20 +75,6 @@ export default function Index() {
 
     return () => clearInterval(themeInterval);
   }, [systemColorScheme]);
-
-  // Theme toggle handler
-  // const toggleTheme = useCallback(async () => {
-  //   try {
-  //     const newTheme = !isDarkMode;
-  //     setIsDarkMode(newTheme);
-  //     await AsyncStorage.setItem(
-  //       STORAGE_KEYS.THEME,
-  //       newTheme ? "dark" : "light",
-  //     );
-  //   } catch (error) {
-  //     console.error("Theme toggle error:", error);
-  //   }
-  // }, [isDarkMode]);
 
   // Initial data fetch
   useEffect(() => {
