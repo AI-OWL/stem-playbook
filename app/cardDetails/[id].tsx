@@ -16,12 +16,10 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Video, ResizeMode } from "expo-av";
 import { fetchCard } from "../services/cardService";
-import { usePoints, PointsProvider } from "../PointsContext";
 
 const handleRedeemPoints = (
   cardId: string,
-  setPointsRedeemed: (value: boolean) => void,
-  redeemCard: (id: string) => void
+  setPointsRedeemed: (value: boolean) => void
 ) => {
   Alert.alert(
     "Redeem Points",
@@ -33,18 +31,25 @@ const handleRedeemPoints = (
       },
       {
         text: "Yes",
-        onPress: () => {
-          redeemCard(cardId);
-          setPointsRedeemed(true);
-          Alert.alert("Success", "Points have been redeemed successfully!");
+        onPress: async () => {
+          try {
+            // Here you would typically update some storage or backend
+            // For this example, we'll just set it locally
+            await AsyncStorage.setItem(`redeemed_${cardId}`, "true");
+            setPointsRedeemed(true);
+            Alert.alert("Success", "Points have been redeemed successfully!");
+          } catch (error) {
+            Alert.alert("Error", "Failed to redeem points. Please try again.");
+          }
         },
       },
     ]
   );
 };
 
-function CardDetailsContent({ id, router }) {
-  const { redeemCard, isCardRedeemed } = usePoints();
+export default function CardDetailsScreen() {
+  const { id } = useLocalSearchParams();
+  const router = useRouter();
   const [pointsRedeemed, setPointsRedeemed] = useState(false);
   const [cardData, setCardData] = useState<{
     name: string;
@@ -71,7 +76,8 @@ function CardDetailsContent({ id, router }) {
           videoUrl: card.videoUrl,
         });
         // Check if this card has already been redeemed
-        if (isCardRedeemed(id as string)) {
+        const redeemed = await AsyncStorage.getItem(`redeemed_${id}`);
+        if (redeemed === "true") {
           setPointsRedeemed(true);
         }
       } catch (err) {
@@ -83,7 +89,7 @@ function CardDetailsContent({ id, router }) {
     };
 
     loadCard();
-  }, [id, isCardRedeemed]);
+  }, [id]);
 
   if (loading) {
     return (
@@ -135,9 +141,7 @@ function CardDetailsContent({ id, router }) {
               styles.redeemButton,
               pointsRedeemed && styles.redeemButtonDisabled,
             ]}
-            onPress={() =>
-              handleRedeemPoints(id as string, setPointsRedeemed, redeemCard)
-            }
+            onPress={() => handleRedeemPoints(id as string, setPointsRedeemed)}
             disabled={pointsRedeemed}
           >
             <Text style={styles.redeemButtonText}>
@@ -147,17 +151,6 @@ function CardDetailsContent({ id, router }) {
         </ScrollView>
       </View>
     </SafeAreaView>
-  );
-}
-
-export default function CardDetailsScreen() {
-  const { id } = useLocalSearchParams();
-  const router = useRouter();
-
-  return (
-    <PointsProvider>
-      <CardDetailsContent id={id} router={router} />
-    </PointsProvider>
   );
 }
 
