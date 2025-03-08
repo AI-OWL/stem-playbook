@@ -22,11 +22,6 @@ export default function AuthFlow() {
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({ name: "", email: "", password: "" });
 
-  const log = logger.createLogger({
-    transport: (msg) => console.log(msg),
-    severity: "debug",
-  });
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,16 +30,6 @@ export default function AuthFlow() {
     setError(null);
     try {
       const { token, user } = await login(loginData.email, loginData.password);
-
-      log.info("Logged in as:", user);
-      log.info("Token:", token);
-
-
-      console.log("Logged in as:", user);
-      console.log("Token:", token);
-
-      // Optionally store an "isAuthenticated" flag
-      // await AsyncStorage.setItem("isAuthenticated", "true");
 
       // Navigate to your main/tab screen
       router.replace("/(tabs)");

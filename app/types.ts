@@ -17,5 +17,4 @@ export interface Card {
   imageUrl: string;
   videoUrl: string;
   tagline: string;
-  rarity: "common" | "rare" | "epic" | "legendary"; // Assuming these are the rarity values
 }

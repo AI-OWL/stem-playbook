@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { logout } from './services/authService';
+import { getStoredUser } from './services/userService';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -25,21 +26,27 @@ export default function ProfileScreen() {
   const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === 'dark');
   const colors = Colors[isDarkMode ? 'dark' : 'light'];
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-
-  // Mock user data
-  const [userData] = useState({
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    profilePic: null,
-  });
+  const [userData, setUserData] = useState(null); // Initialize as null
 
   useEffect(() => {
+    // Function to load user data
+    const loadUserData = async () => {
+      try {
+        const user = await getStoredUser(); // Wait for the Promise to resolve
+        setUserData(user);
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      }
+    };
+
     loadThemePreference();
+    loadUserData();
 
     // Listen for system theme changes
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (nextAppState === 'active') {
         loadThemePreference();
+        loadUserData(); // Refresh user data when app becomes active
       }
     });
 
@@ -54,7 +61,6 @@ export default function ProfileScreen() {
       if (savedTheme) {
         setIsDarkMode(savedTheme === 'dark');
       } else {
-        // If no saved preference, use system theme
         setIsDarkMode(systemColorScheme === 'dark');
       }
     } catch (error) {
@@ -117,9 +123,19 @@ export default function ProfileScreen() {
     router.push('/profile/notifications');
   };
 
+  // Show loading state while userData is null
+  if (!userData) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: colors.text }}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Back Button */}
       <View style={styles.backButtonContainer}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
@@ -127,11 +143,10 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-        {/* Profile Header */}
         <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.icon }]}>
           <View style={styles.profileImageContainer}>
             <Image
-              source={userData.profilePic || require('@/assets/images/default-avatar.png')}
+              source={/*userData.profilePic || */require('@/assets/images/default-avatar.png')}
               style={styles.profileImage}
             />
             <TouchableOpacity
@@ -145,7 +160,6 @@ export default function ProfileScreen() {
           <Text style={[styles.email, { color: colors.icon }]}>{userData.email}</Text>
         </View>
 
-        {/* Account Section */}
         <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.icon }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Account</Text>
 
@@ -162,7 +176,6 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Preferences Section */}
         <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.icon }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Preferences</Text>
 
@@ -191,7 +204,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Settings Section */}
         <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.icon }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Settings</Text>
 
@@ -205,7 +217,6 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Logout Button */}
         <TouchableOpacity
           style={[styles.logoutButton, { backgroundColor: colors.background, borderColor: colors.icon }]}
           onPress={handleLogout}
