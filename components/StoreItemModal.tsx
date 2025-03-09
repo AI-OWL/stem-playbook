@@ -13,7 +13,6 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { usePoints } from "../app/PointsContext";
 
 const { width } = Dimensions.get("window");
 
@@ -23,37 +22,38 @@ interface StoreItemModalProps {
   onClose: () => void;
   onPurchase: () => void;
   isDarkMode: boolean;
+  userPoints: number; // Added prop for user's points
+  isPurchased: boolean; // Added prop to track if item is purchased
 }
 
 const DefaultImage = require("../assets/images/Shop/PremiumAvatar.png");
 
 // Helper to handle image source resolution
-const getImageSource = (itemId, imageIndex = 0) => {
-  // Return specific images based on item ID and index
+const getImageSource = (itemId: string, imageIndex = 0) => {
   if (itemId === "1") {
     const images = [
       require("../assets/images/Shop/PremiumAvatar.png"),
-      require("../assets/images/Shop/PremiumAvatar.png"), // Alt versions would go here
+      require("../assets/images/Shop/PremiumAvatar.png"),
       require("../assets/images/Shop/PremiumAvatar.png")
     ];
     return images[imageIndex] || images[0];
   } else if (itemId === "2") {
     const images = [
       require("../assets/images/Shop/DarkThemePack.png"),
-      require("../assets/images/Shop/DarkThemePack.png"), // Alt versions would go here
+      require("../assets/images/Shop/DarkThemePack.png"),
       require("../assets/images/Shop/DarkThemePack.png")
     ];
     return images[imageIndex] || images[0];
   } else if (itemId === "3") {
     const images = [
       require("../assets/images/Shop/AchievementBadge.png"),
-      require("../assets/images/Shop/AchievementBadge.png") // Alt versions would go here
+      require("../assets/images/Shop/AchievementBadge.png")
     ];
     return images[imageIndex] || images[0];
   } else if (itemId === "4") {
     const images = [
       require("../assets/images/Shop/ProfileBackground.png"),
-      require("../assets/images/Shop/ProfileBackground.png"), // Alt versions would go here
+      require("../assets/images/Shop/ProfileBackground.png"),
       require("../assets/images/Shop/ProfileBackground.png"),
       require("../assets/images/Shop/ProfileBackground.png")
     ];
@@ -69,16 +69,17 @@ const StoreItemModal: React.FC<StoreItemModalProps> = ({
   onClose,
   onPurchase,
   isDarkMode,
+  userPoints,
+  isPurchased: itemPurchased,
 }) => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
-  const { points, isPurchased } = usePoints();
 
   if (!visible || !item) return null;
 
-  const canAfford = points >= item.points;
-  const alreadyPurchased = isPurchased(item.id);
+  const canAfford = userPoints >= item.points;
+  const alreadyPurchased = itemPurchased;
 
   const images = item.imageGallery || [item.imageUrl];
 

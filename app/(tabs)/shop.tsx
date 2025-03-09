@@ -24,7 +24,6 @@ import Header from "@/components/Header";
 import StoreItem from "@/components/StoreItem";
 import StoreItemModal from "@/components/StoreItemModal";
 import { Colors } from "@/constants/Colors";
-import { PointsProvider, usePoints } from "../PointsContext";
 
 const ITEMS_PER_PAGE = 10;
 const ANIMATION_DURATION = 300;
@@ -94,7 +93,7 @@ const MOCK_STORE_ITEMS = [
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
-function ShopContent() {
+function ShopContent({ userPoints = 1000, onPurchaseItem, isItemPurchased }) {
   const systemColorScheme = useColorScheme();
   const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === "dark");
   const colors = useMemo(
@@ -170,29 +169,10 @@ function ShopContent() {
 
   const loadInitialData = async () => {
     try {
-      await Promise.all([loadUserPoints(), loadItems(true)]);
+      await loadItems(true);
     } catch (error) {
       console.error("Initialization error:", error);
       Alert.alert("Error", "Failed to initialize the store. Please try again.");
-    }
-  };
-
-  useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  const loadUserPoints = async () => {
-    try {
-      const pointsData = await AsyncStorage.getItem(STORAGE_KEYS.USER_POINTS);
-      let points = 0;
-      if (pointsData) {
-        points = parseInt(pointsData, 10);
-      }
-      return points;
-    } catch (error) {
-      console.error("Error loading user points:", error);
-      Alert.alert("Error", "Failed to load user points. Using default value.");
-      return 1000;
     }
   };
 
@@ -219,13 +199,11 @@ function ShopContent() {
       if (refresh) {
         setItems(newItems);
       } else {
-        // When adding new items, ensure they have proper animation values
         setItems((prev) => [...prev, ...newItems]);
       }
 
       setHasMore(newItems.length === ITEMS_PER_PAGE);
 
-      // Start animations for all items to ensure they're visible
       Animated.parallel(
         newItems.map((item) =>
           Animated.spring(item.animValue, {
@@ -258,11 +236,8 @@ function ShopContent() {
     }
   }, [loading, isLoadingMore, hasMore]);
 
-  const { points, purchaseItem, isPurchased } = usePoints();
-
   const handlePurchase = useCallback(async (item) => {
-    // If already purchased, just show a message
-    if (isPurchased(item.id)) {
+    if (isItemPurchased(item.id)) {
       Alert.alert(
         "Already Purchased",
         `You already own ${item.title}.`
@@ -270,8 +245,7 @@ function ShopContent() {
       return;
     }
 
-    // Check if user can afford the item
-    if (points < item.points) {
+    if (userPoints < item.points) {
       Alert.alert(
         "Insufficient Points",
         "You need more points to purchase this item.",
@@ -279,7 +253,6 @@ function ShopContent() {
       return;
     }
 
-    // Confirm purchase
     Alert.alert(
       "Confirm Purchase",
       `Are you sure you want to purchase ${item.title} for ${item.points} points?`,
@@ -288,11 +261,9 @@ function ShopContent() {
         {
           text: "Purchase",
           onPress: async () => {
-            // Process the purchase
-            const success = await purchaseItem(item.id, item.points);
+            const success = await onPurchaseItem(item.id, item.points);
 
             if (success) {
-              // Animate the item
               if (item.animValue) {
                 Animated.sequence([
                   Animated.timing(item.animValue, {
@@ -309,14 +280,12 @@ function ShopContent() {
                 ]).start();
               }
 
-              // Show success message
               Alert.alert(
                 "Success",
                 "Item purchased successfully!",
                 [{ text: "OK", onPress: () => setModalVisible(false) }]
               );
             } else {
-              // Show error message
               Alert.alert(
                 "Error",
                 "Failed to complete purchase. Please try again."
@@ -326,10 +295,9 @@ function ShopContent() {
         },
       ],
     );
-  }, [points, purchaseItem, isPurchased]);
+  }, [userPoints, onPurchaseItem, isItemPurchased]);
 
   const renderHeader = useCallback(() => {
-    const { points } = usePoints();
     return (
       <Animated.View
         style={[
@@ -352,11 +320,11 @@ function ShopContent() {
             size={20}
             color={isDarkMode ? "#FFD700" : colors.tint}
           />{" "}
-          {points} Points
+          {userPoints} Points
         </ThemedText>
       </Animated.View>
     );
-  }, [colors, headerOpacity, isDarkMode]);
+  }, [colors, headerOpacity, isDarkMode, userPoints]);
 
   const renderFooter = useCallback(() => {
     if (!hasMore) return null;
@@ -413,14 +381,13 @@ function ShopContent() {
 
   const renderItem = useCallback(
     ({ item, index }) => {
-      // Remove the opacity animation that was causing items to fade
       return (
         <Animated.View
           style={[
             styles.itemContainer,
             {
-              opacity: item.animValue, // Only use the initial animation value
-              transform: [{ scale: item.animValue }], // Only use the initial animation value
+              opacity: item.animValue,
+              transform: [{ scale: item.animValue }],
             },
           ]}
         >
@@ -433,11 +400,13 @@ function ShopContent() {
             type={item.type}
             rarity={item.rarity}
             onPress={() => handleItemPress(item)}
+            canAfford={userPoints >= item.points}
+            alreadyPurchased={isItemPurchased(item.id)}
           />
         </Animated.View>
       );
     },
-    [scrollY, isDarkMode, handleItemPress],
+    [scrollY, isDarkMode, handleItemPress, userPoints, isItemPurchased],
   );
 
   const keyExtractor = useCallback((item) => item.id, []);
@@ -470,56 +439,56 @@ function ShopContent() {
     <ThemedView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-        <Header
-          title="Store"
-          onProfilePress={() => console.log("Profile icon pressed")}
-          style={{ backgroundColor: colors.background }}
-          textColor={isDarkMode ? "#FFFFFF" : colors.text}
-          iconColor={isDarkMode ? "#FFFFFF" : colors.tint}
-        />
+      <Header
+        title="Store"
+        onProfilePress={() => console.log("Profile icon pressed")}
+        style={{ backgroundColor: colors.background }}
+        textColor={isDarkMode ? "#FFFFFF" : colors.text}
+        iconColor={isDarkMode ? "#FFFFFF" : colors.tint}
+      />
 
-        <StoreItemModal
-          visible={modalVisible}
-          item={selectedItem}
-          onClose={() => setModalVisible(false)}
-          onPurchase={() => handlePurchase(selectedItem)}
-          isDarkMode={isDarkMode}
-        />
+      <StoreItemModal
+        visible={modalVisible}
+        item={selectedItem}
+        onClose={() => setModalVisible(false)}
+        onPurchase={() => handlePurchase(selectedItem)}
+        isDarkMode={isDarkMode}
+      />
 
-        <AnimatedFlatList
-          data={items}
-          keyExtractor={keyExtractor}
-          renderItem={renderItem}
-          contentContainerStyle={[
-            styles.listContainer,
-            items.length === 0 && styles.emptyList,
-            { backgroundColor: colors.background },
-          ]}
-          ListHeaderComponent={renderHeader}
-          ListFooterComponent={renderFooter}
-          ListEmptyComponent={renderEmpty}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={isDarkMode ? "#FFFFFF" : colors.tint}
-              colors={[isDarkMode ? "#FFFFFF" : colors.tint]}
-              progressBackgroundColor={colors.card}
-            />
-          }
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true },
-          )}
-          scrollEventThrottle={16}
-          removeClippedSubviews={Platform.OS !== "web"}
-          maxToRenderPerBatch={5}
-          windowSize={5}
-          initialNumToRender={10}
-        />
-      </ThemedView>
+      <AnimatedFlatList
+        data={items}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        contentContainerStyle={[
+          styles.listContainer,
+          items.length === 0 && styles.emptyList,
+          { backgroundColor: colors.background },
+        ]}
+        ListHeaderComponent={renderHeader}
+        ListFooterComponent={renderFooter}
+        ListEmptyComponent={renderEmpty}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={isDarkMode ? "#FFFFFF" : colors.tint}
+            colors={[isDarkMode ? "#FFFFFF" : colors.tint]}
+            progressBackgroundColor={colors.card}
+          />
+        }
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true },
+        )}
+        scrollEventThrottle={16}
+        removeClippedSubviews={Platform.OS !== "web"}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        initialNumToRender={10}
+      />
+    </ThemedView>
   );
 }
 
@@ -597,10 +566,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 });
-export default function Shop() {
+
+export default function Shop({ userPoints = 1000, onPurchaseItem = () => true, isItemPurchased = () => false }) {
   return (
-    <PointsProvider>
-      <ShopContent />
-    </PointsProvider>
+    <ShopContent 
+      userPoints={userPoints}
+      onPurchaseItem={onPurchaseItem}
+      isItemPurchased={isItemPurchased}
+    />
   );
 }

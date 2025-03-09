@@ -21,7 +21,6 @@ import Header from '@/components/Header';
 import AchievementItem from '@/components/ui/AchievementItem';
 import { FontAwesome } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
-import { PointsProvider } from '../PointsContext';
 
 const REFRESH_INTERVAL = 300000; // 5 minutes
 const ANIMATION_DELAY = 100;
@@ -435,7 +434,6 @@ const Achievements = () => {
   }
 
   return (
-    <PointsProvider>
     <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
       <Header
         title="Achievements"
@@ -490,7 +488,6 @@ const Achievements = () => {
           })}
         />
     </ThemedView>
-    </PointsProvider>
   );
 };
 
