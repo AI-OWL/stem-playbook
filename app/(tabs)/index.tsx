@@ -24,10 +24,11 @@ import { fetchAndStoreAllCards } from "../services/cardService";
 import { getStoredUser } from "../services/userService";
 import { getWalletData, WalletCategory } from "../services/walletService";
 import { Card } from "../types";
+import { logger } from "react-native-logs";
 
 const REFRESH_INTERVAL = 300000; // 5 minutes
 const ANIMATION_DURATION = 300;
-const SCREEN_WIDTH = Dimensions.get('window').width;
+const SCREEN_WIDTH = Dimensions.get("window").width;
 const PADDING = 16;
 const CARD_MARGIN = 8;
 const GRID_GAP = 12;
@@ -37,9 +38,14 @@ const STORAGE_KEYS = {
   CATEGORIES: "categories",
 };
 
+// 1) Create a logger instance with default settings
+const log = logger.createLogger();
+
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 
 export default function Index() {
+  log.debug("[Index] Component mounted.");
+
   const systemColorScheme = useColorScheme();
   const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === "dark");
   const colors = useMemo(() => Colors[isDarkMode ? "dark" : "light"], [isDarkMode]);
@@ -56,17 +62,20 @@ export default function Index() {
 
   // Theme management
   useEffect(() => {
+    log.debug("[Index] Checking and updating theme...");
     const checkAndUpdateTheme = async () => {
       try {
         const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
         if (savedTheme !== null) {
           setIsDarkMode(savedTheme === "dark");
+          log.debug(`[Index] Loaded saved theme: ${savedTheme}`);
         } else {
           setIsDarkMode(systemColorScheme === "dark");
           await AsyncStorage.setItem(STORAGE_KEYS.THEME, systemColorScheme);
+          log.debug(`[Index] Saved system theme: ${systemColorScheme}`);
         }
       } catch (error) {
-        console.error("Theme check error:", error);
+        log.error("Theme check error:", error);
       }
     };
 
@@ -78,20 +87,32 @@ export default function Index() {
 
   // Initial data fetch
   useEffect(() => {
+    log.debug("[Index] Fetching initial data...");
     const fetchData = async () => {
       setLoading(true);
       try {
         const token = await AsyncStorage.getItem("token");
-        if (!token) throw new Error("No token found");
+        if (!token) {
+          log.debug("[Index] No token found in AsyncStorage. Throwing error.");
+          throw new Error("No token found");
+        }
 
-        const allCards: any = await fetchAndStoreAllCards(token);
+        log.debug("[Index] Found token. Fetching and storing all cards...");
+        const allCards: any = await fetchAndStoreAllCards();
+        log.debug(`[Index] Fetched ${allCards?.length || 0} cards.`);
+
         const user = await getStoredUser();
-        if (!user) throw new Error("User not found");
+        if (!user) {
+          log.debug("[Index] getStoredUser() returned null. Throwing error.");
+          throw new Error("User not found");
+        }
+        log.debug(`[Index] Found user with id: ${user.id}`);
 
         const walletData = getWalletData(allCards, user.cardIds);
+        log.debug(`[Index] Processed wallet data into ${walletData.length} categories.`);
         setCategories(walletData);
       } catch (err) {
-        console.error("Error fetching wallet data:", err);
+        log.error("Error fetching wallet data:", err);
         setError("Failed to load wallet data");
       } finally {
         setLoading(false);
@@ -99,73 +120,107 @@ export default function Index() {
     };
 
     fetchData();
-  }, []); // Empty dependency array means it only runs once on mount
+  }, []); // Empty array => runs once on mount
 
   const toggleTheme = useCallback(async () => {
     try {
       const newTheme = !isDarkMode;
       setIsDarkMode(newTheme);
       await AsyncStorage.setItem(STORAGE_KEYS.THEME, newTheme ? "dark" : "light");
+      log.debug(`[Index] Toggled theme to: ${newTheme ? "dark" : "light"}`);
     } catch (error) {
-      console.error("Theme toggle error:", error);
+      log.error("Theme toggle error:", error);
     }
   }, [isDarkMode]);
 
-  const animateCards = useCallback((walletCategories: WalletCategory[]) => {
-    const animations: Animated.Value[] = [];
+  /**
+   * Animate cards with a slight stagger
+   */
+  const animateCards = useCallback(
+    (walletCategories: WalletCategory[]) => {
+      log.debug("[Index] Animating cards...");
+      const animations: Animated.Value[] = [];
 
-    walletCategories.forEach((category) => {
-      category.data.forEach((card) => {
-        if (!cardAnimations.has(card.id)) {
-          const animation = new Animated.Value(0);
-          cardAnimations.set(card.id, animation);
-          animations.push(animation);
-        }
+      walletCategories.forEach((category) => {
+        category.data.forEach((card) => {
+          if (!cardAnimations.has(card.id)) {
+            const animation = new Animated.Value(0);
+            cardAnimations.set(card.id, animation);
+            animations.push(animation);
+          }
+        });
       });
-    });
 
-    const staggeredAnimations = animations.map((animation, index) =>
-      Animated.sequence([
-        Animated.delay(index * 50),
-        Animated.spring(animation, {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-      ])
-    );
+      const staggeredAnimations = animations.map((animation, index) =>
+        Animated.sequence([
+          Animated.delay(index * 50),
+          Animated.spring(animation, {
+            toValue: 1,
+            tension: 50,
+            friction: 7,
+            useNativeDriver: true,
+          }),
+        ])
+      );
 
-    Animated.parallel(staggeredAnimations).start();
-  }, [cardAnimations]);
+      Animated.parallel(staggeredAnimations).start(() => {
+        log.debug("[Index] Finished card animations.");
+      });
+    },
+    [cardAnimations]
+  );
 
+  // Animate whenever categories change
   useEffect(() => {
     if (categories.length > 0) {
+      log.debug(`[Index] categories changed. Count: ${categories.length}`);
       animateCards(categories);
     }
   }, [categories, animateCards]);
 
+  /**
+   * Pull-to-refresh
+   */
   const handleRefresh = useCallback(() => {
+    log.debug("[Index] Pull-to-refresh triggered.");
     setRefreshing(true);
     (async () => {
       try {
         const token = await AsyncStorage.getItem("token");
-        if (!token) throw new Error("No token found");
+        if (!token) {
+          log.debug("[Index] No token found during refresh. Throwing error.");
+          throw new Error("No token found");
+        }
+
+        log.debug("[Index] Refresh: fetchAndStoreAllCards...");
         const allCards: any = await fetchAndStoreAllCards(token);
+        log.debug(`[Index] Refresh: fetched ${allCards?.length || 0} cards.`);
+
         const user = await getStoredUser();
-        if (!user) throw new Error("User not found");
+        if (!user) {
+          log.debug("[Index] Refresh: user not found. Throwing error.");
+          throw new Error("User not found");
+        }
+        log.debug(`[Index] Refresh: got user with id: ${user.id}`);
+
         const walletData = getWalletData(allCards, user.cardIds);
+        log.debug(`[Index] Refresh: processed into ${walletData.length} categories.`);
         setCategories(walletData);
       } catch (err) {
-        console.error("Error refreshing wallet data:", err);
+        log.error("Error refreshing wallet data:", err);
         setError("Failed to refresh wallet data");
       } finally {
         setRefreshing(false);
+        log.debug("[Index] Pull-to-refresh complete.");
       }
     })();
   }, []);
 
+  /**
+   * On card press
+   */
   const handleCardPress = useCallback((card: any) => {
+    log.debug(`[Index] Card pressed: ${card.id}`);
     setSelectedCardId(card.id);
     setSelectedCardImageUrl(card.imageUrl);
 
@@ -188,6 +243,9 @@ export default function Index() {
     }
   }, []);
 
+  /**
+   * Render a section header (title + subheading + card grid)
+   */
   const renderSectionHeader = useCallback(
     ({ section: { title, data } }) => {
       const headerTranslateY = scrollY.interpolate({
@@ -265,9 +323,12 @@ export default function Index() {
         </Animated.View>
       );
     },
-    [colors, handleCardPress, scrollY, isDarkMode],
+    [colors, handleCardPress, scrollY, isDarkMode]
   );
 
+  /**
+   * Render an empty fallback
+   */
   const renderEmpty = useCallback(
     () => (
       <View
@@ -292,9 +353,12 @@ export default function Index() {
         </ThemedText>
       </View>
     ),
-    [colors, error, isDarkMode],
+    [colors, error, isDarkMode]
   );
 
+  /**
+   * Render a loading fallback
+   */
   const renderLoading = useCallback(
     () => (
       <View
@@ -317,7 +381,7 @@ export default function Index() {
         </ThemedText>
       </View>
     ),
-    [colors, isDarkMode],
+    [colors, isDarkMode]
   );
 
   if (loading && !refreshing) {
@@ -347,7 +411,7 @@ export default function Index() {
         ]}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true },
+          { useNativeDriver: true }
         )}
         scrollEventThrottle={16}
         refreshControl={
@@ -383,6 +447,7 @@ export default function Index() {
         imageUrl={selectedCardImageUrl}
         cardId={selectedCardId}
         onClose={() => {
+          log.debug("[Index] Closing card modal...");
           setSelectedCardId(null);
           setSelectedCardImageUrl(null);
         }}
@@ -420,8 +485,8 @@ const styles = StyleSheet.create({
   },
   emptyList: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   sectionContainer: {
     marginBottom: 24,
@@ -431,9 +496,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     marginBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     borderWidth: 1,
   },
   sectionHeader: {
@@ -445,16 +510,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
   },
   cardWrapper: {
-    width: '48%', // Ensures two cards per row with spacing
+    width: "48%",
     marginBottom: 16,
   },
   cardContainer: {
-    width: '48%',
+    width: "48%",
     marginBottom: 16,
   },
   emptyContainer: {

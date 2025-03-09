@@ -1,5 +1,5 @@
 // pages/AuthFlow.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,8 +13,14 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { signup, login, confirmSignup, resendVerification } from "./services/authService";
+import { logger } from "react-native-logs";
+
+// 1) Create a logger instance with default settings
+const log = logger.createLogger();
 
 export default function AuthFlow() {
+  log.debug("[AuthFlow] Component mounted");
+
   const router = useRouter();
 
   // Tabs: "login" | "signup" | "verify"
@@ -34,18 +40,29 @@ export default function AuthFlow() {
   const [error, setError] = useState<string | null>(null);
 
   /**
+   * Log tab changes
+   */
+  const handleTabChange = (tab: "login" | "signup" | "verify") => {
+    log.debug(`[AuthFlow] Changing tab to: ${tab}`);
+    setActiveTab(tab);
+  };
+
+  /**
    * Handle the login flow
    */
   const handleLogin = async () => {
+    log.debug("[AuthFlow] Attempting login...");
     setLoading(true);
     setError(null);
 
     try {
       const response = await login(loginData.email, loginData.password);
-      // e.g. { token, user }
-      router.replace("/(tabs)"); // Navigate to main app screen
+      log.debug("[AuthFlow] Login successful, navigating to main tabs.");
+      router.replace("/(tabs)");
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Login failed");
+      const msg = err?.response?.data?.message || "Login failed";
+      log.error("[AuthFlow] Login error:", msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -55,19 +72,21 @@ export default function AuthFlow() {
    * Handle the sign-up flow
    */
   const handleSignup = async () => {
+    log.debug("[AuthFlow] Attempting signup...");
     setLoading(true);
     setError(null);
 
     try {
       const response = await signup(signupData.name, signupData.email, signupData.password);
-      // e.g. { message: "User registered successfully..." }
-
+      log.debug("[AuthFlow] Signup successful. Prompting user to verify.");
       // After successful sign-up, switch to "verify" tab.
       // Pre-fill the verificationData.email so user doesn't have to retype
       setVerificationData({ email: signupData.email, code: "" });
-      setActiveTab("verify");
+      handleTabChange("verify");
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Signup failed");
+      const msg = err?.response?.data?.message || "Signup failed";
+      log.error("[AuthFlow] Signup error:", msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -77,16 +96,20 @@ export default function AuthFlow() {
    * Handle the email verification flow
    */
   const handleVerification = async () => {
+    log.debug("[AuthFlow] Attempting verification...");
     setLoading(true);
     setError(null);
 
     try {
       // call confirm signup
       await confirmSignup(verificationData.email, verificationData.code);
+      log.debug("[AuthFlow] Verification success. Switching to login tab.");
       // On success, switch to login tab
-      setActiveTab("login");
+      handleTabChange("login");
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Verification failed");
+      const msg = err?.response?.data?.message || "Verification failed";
+      log.error("[AuthFlow] Verification error:", msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -97,19 +120,25 @@ export default function AuthFlow() {
    */
   const handleResendCode = async () => {
     if (!verificationData.email) {
-      setError("Email is required to resend code");
+      const msg = "Email is required to resend code";
+      log.error("[AuthFlow] Resend code error:", msg);
+      setError(msg);
       return;
     }
 
+    log.debug("[AuthFlow] Resending verification code...");
     setLoading(true);
     setError(null);
 
     try {
       await resendVerification(verificationData.email);
+      log.debug("[AuthFlow] Verification code resent successfully.");
       // You can show a success message if you like
       setError("A new verification code has been sent to your email.");
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Resend failed");
+      const msg = err?.response?.data?.message || "Resend failed";
+      log.error("[AuthFlow] Resend code error:", msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -130,7 +159,7 @@ export default function AuthFlow() {
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={[styles.tab, activeTab === "login" && styles.activeTab]}
-            onPress={() => setActiveTab("login")}
+            onPress={() => handleTabChange("login")}
           >
             <Text style={[styles.tabText, activeTab === "login" && styles.activeTabText]}>
               Login
@@ -139,7 +168,7 @@ export default function AuthFlow() {
 
           <TouchableOpacity
             style={[styles.tab, activeTab === "signup" && styles.activeTab]}
-            onPress={() => setActiveTab("signup")}
+            onPress={() => handleTabChange("signup")}
           >
             <Text style={[styles.tabText, activeTab === "signup" && styles.activeTabText]}>
               Sign Up
@@ -148,7 +177,7 @@ export default function AuthFlow() {
 
           <TouchableOpacity
             style={[styles.tab, activeTab === "verify" && styles.activeTab]}
-            onPress={() => setActiveTab("verify")}
+            onPress={() => handleTabChange("verify")}
           >
             <Text style={[styles.tabText, activeTab === "verify" && styles.activeTabText]}>
               Verify
@@ -253,7 +282,11 @@ export default function AuthFlow() {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={handleResendCode} disabled={loading}>
+            <TouchableOpacity
+              style={[styles.button, styles.secondaryButton]}
+              onPress={handleResendCode}
+              disabled={loading}
+            >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
