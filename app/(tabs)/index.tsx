@@ -7,7 +7,6 @@ import {
   RefreshControl,
   useColorScheme,
   Platform,
-  Alert,
   ActivityIndicator,
   Dimensions,
   SafeAreaView,
@@ -25,26 +24,25 @@ import { getStoredUser } from "../services/userService";
 import { getWalletData, WalletCategory } from "../services/walletService";
 import { Card } from "../types";
 import { logger } from "react-native-logs";
+import { useRouter } from "expo-router";
 
 const REFRESH_INTERVAL = 300000; // 5 minutes
-const ANIMATION_DURATION = 300;
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const PADDING = 16;
-const CARD_MARGIN = 8;
-const GRID_GAP = 12;
-const CARD_WIDTH_PERCENTAGE = 48;
 const STORAGE_KEYS = {
   THEME: "theme",
   CATEGORIES: "categories",
 };
 
-// 1) Create a logger instance with default settings
+// Create a logger instance
 const log = logger.createLogger();
 
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 
 export default function Index() {
   log.debug("[Index] Component mounted.");
+
+  // For navigation
+  const router = useRouter();
 
   const systemColorScheme = useColorScheme();
   const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === "dark");
@@ -60,7 +58,7 @@ export default function Index() {
   const cardAnimations = useRef(new Map<string, Animated.Value>()).current;
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  // Theme management
+  // 1) Theme management
   useEffect(() => {
     log.debug("[Index] Checking and updating theme...");
     const checkAndUpdateTheme = async () => {
@@ -75,7 +73,7 @@ export default function Index() {
           log.debug(`[Index] Saved system theme: ${systemColorScheme}`);
         }
       } catch (error) {
-        log.error("Theme check error:", error);
+        log.error("[Index] Theme check error:", error);
       }
     };
 
@@ -85,16 +83,19 @@ export default function Index() {
     return () => clearInterval(themeInterval);
   }, [systemColorScheme]);
 
-  // Initial data fetch
+  // 2) Initial data fetch
   useEffect(() => {
     log.debug("[Index] Fetching initial data...");
+
     const fetchData = async () => {
       setLoading(true);
       try {
         const token = await AsyncStorage.getItem("token");
         if (!token) {
-          log.debug("[Index] No token found in AsyncStorage. Throwing error.");
-          throw new Error("No token found");
+          log.debug("[Index] No token found in AsyncStorage. Navigating to /auth...");
+          // Navigate back to login
+          router.replace("/login");
+          return; // Important to stop execution here
         }
 
         log.debug("[Index] Found token. Fetching and storing all cards...");
@@ -103,8 +104,9 @@ export default function Index() {
 
         const user = await getStoredUser();
         if (!user) {
-          log.debug("[Index] getStoredUser() returned null. Throwing error.");
-          throw new Error("User not found");
+          log.debug("[Index] getStoredUser() returned null. Navigating to /auth...");
+          router.replace("/auth");
+          return;
         }
         log.debug(`[Index] Found user with id: ${user.id}`);
 
@@ -112,7 +114,7 @@ export default function Index() {
         log.debug(`[Index] Processed wallet data into ${walletData.length} categories.`);
         setCategories(walletData);
       } catch (err) {
-        log.error("Error fetching wallet data:", err);
+        log.error("[Index] Error fetching wallet data:", err);
         setError("Failed to load wallet data");
       } finally {
         setLoading(false);
@@ -120,8 +122,9 @@ export default function Index() {
     };
 
     fetchData();
-  }, []); // Empty array => runs once on mount
+  }, [router]);
 
+  // Toggle theme (optional usage)
   const toggleTheme = useCallback(async () => {
     try {
       const newTheme = !isDarkMode;
@@ -129,13 +132,11 @@ export default function Index() {
       await AsyncStorage.setItem(STORAGE_KEYS.THEME, newTheme ? "dark" : "light");
       log.debug(`[Index] Toggled theme to: ${newTheme ? "dark" : "light"}`);
     } catch (error) {
-      log.error("Theme toggle error:", error);
+      log.error("[Index] Theme toggle error:", error);
     }
   }, [isDarkMode]);
 
-  /**
-   * Animate cards with a slight stagger
-   */
+  // Animate cards with a slight stagger
   const animateCards = useCallback(
     (walletCategories: WalletCategory[]) => {
       log.debug("[Index] Animating cards...");
@@ -178,9 +179,7 @@ export default function Index() {
     }
   }, [categories, animateCards]);
 
-  /**
-   * Pull-to-refresh
-   */
+  // Pull-to-refresh
   const handleRefresh = useCallback(() => {
     log.debug("[Index] Pull-to-refresh triggered.");
     setRefreshing(true);
@@ -188,8 +187,9 @@ export default function Index() {
       try {
         const token = await AsyncStorage.getItem("token");
         if (!token) {
-          log.debug("[Index] No token found during refresh. Throwing error.");
-          throw new Error("No token found");
+          log.debug("[Index] No token found during refresh. Navigating to /auth...");
+          router.replace("/auth");
+          return;
         }
 
         log.debug("[Index] Refresh: fetchAndStoreAllCards...");
@@ -198,8 +198,9 @@ export default function Index() {
 
         const user = await getStoredUser();
         if (!user) {
-          log.debug("[Index] Refresh: user not found. Throwing error.");
-          throw new Error("User not found");
+          log.debug("[Index] Refresh: user not found. Navigating to /auth...");
+          router.replace("/auth");
+          return;
         }
         log.debug(`[Index] Refresh: got user with id: ${user.id}`);
 
@@ -207,18 +208,16 @@ export default function Index() {
         log.debug(`[Index] Refresh: processed into ${walletData.length} categories.`);
         setCategories(walletData);
       } catch (err) {
-        log.error("Error refreshing wallet data:", err);
+        log.error("[Index] Error refreshing wallet data:", err);
         setError("Failed to refresh wallet data");
       } finally {
         setRefreshing(false);
         log.debug("[Index] Pull-to-refresh complete.");
       }
     })();
-  }, []);
+  }, [router]);
 
-  /**
-   * On card press
-   */
+  // On card press
   const handleCardPress = useCallback((card: any) => {
     log.debug(`[Index] Card pressed: ${card.id}`);
     setSelectedCardId(card.id);
@@ -243,9 +242,7 @@ export default function Index() {
     }
   }, []);
 
-  /**
-   * Render a section header (title + subheading + card grid)
-   */
+  // Render a section header (title + subheading + card grid)
   const renderSectionHeader = useCallback(
     ({ section: { title, data } }) => {
       const headerTranslateY = scrollY.interpolate({
@@ -326,14 +323,10 @@ export default function Index() {
     [colors, handleCardPress, scrollY, isDarkMode]
   );
 
-  /**
-   * Render an empty fallback
-   */
+  // Render an empty fallback
   const renderEmpty = useCallback(
     () => (
-      <View
-        style={[styles.emptyContainer, { backgroundColor: colors.background }]}
-      >
+      <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
         <FontAwesome
           name="folder-open"
           size={48}
@@ -356,21 +349,11 @@ export default function Index() {
     [colors, error, isDarkMode]
   );
 
-  /**
-   * Render a loading fallback
-   */
+  // Render a loading fallback
   const renderLoading = useCallback(
     () => (
-      <View
-        style={[
-          styles.loadingContainer,
-          { backgroundColor: colors.background },
-        ]}
-      >
-        <ActivityIndicator
-          size="large"
-          color={isDarkMode ? "#FFFFFF" : colors.tint}
-        />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={isDarkMode ? "#FFFFFF" : colors.tint} />
         <ThemedText
           style={[
             styles.loadingText,
@@ -384,14 +367,13 @@ export default function Index() {
     [colors, isDarkMode]
   );
 
+  // If still loading initial fetch (and not just refreshing), show loading
   if (loading && !refreshing) {
     return renderLoading();
   }
 
   return (
-    <ThemedView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
+    <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
       <Header
         title="Wallet"
         style={{ backgroundColor: colors.background }}
@@ -409,10 +391,9 @@ export default function Index() {
           categories.length === 0 && styles.emptyList,
           { backgroundColor: colors.background },
         ]}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+        })}
         scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
@@ -424,16 +405,12 @@ export default function Index() {
           />
         }
         ListHeaderComponent={
-          <View
-            style={[styles.listHeader, { backgroundColor: colors.background }]}
-          />
+          <View style={[styles.listHeader, { backgroundColor: colors.background }]} />
         }
         ListFooterComponent={
-          <View
-            style={[styles.listFooter, { backgroundColor: colors.background }]}
-          />
+          <View style={[styles.listFooter, { backgroundColor: colors.background }]} />
         }
-        renderItem={() => null} // We're rendering cards in the section header
+        renderItem={() => null} // We render cards in sectionHeader
         removeClippedSubviews={Platform.OS !== "web"}
         maxToRenderPerBatch={5}
         windowSize={5}
@@ -455,9 +432,7 @@ export default function Index() {
         collected={
           selectedCardId
             ? categories.some((category) =>
-                category.data.some(
-                  (card) => card.id === selectedCardId && card.collected
-                )
+                category.data.some((card) => card.id === selectedCardId && card.collected)
               )
             : false
         }
@@ -467,9 +442,6 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
   container: {
     flex: 1,
   },
@@ -515,10 +487,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   cardWrapper: {
-    width: "48%",
-    marginBottom: 16,
-  },
-  cardContainer: {
     width: "48%",
     marginBottom: 16,
   },
