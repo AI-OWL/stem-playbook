@@ -1,11 +1,8 @@
-import { Card } from "../types";
-
 export interface WalletCard {
   id: string;
   imageUrl: string;
   title: string;
   description: string;
-  rarity: "common" | "rare" | "epic" | "legendary" | string;
   collected: boolean;
 }
 

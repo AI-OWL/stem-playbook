@@ -26,8 +26,6 @@ import { Card } from "../types";
 import { logger } from "react-native-logs";
 import { useRouter } from "expo-router";
 
-const REFRESH_INTERVAL = 300000; // 5 minutes
-const SCREEN_WIDTH = Dimensions.get("window").width;
 const STORAGE_KEYS = {
   THEME: "theme",
   CATEGORIES: "categories",
@@ -39,8 +37,6 @@ const log = logger.createLogger();
 const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
 
 export default function Index() {
-  log.debug("[Index] Component mounted.");
-
   // For navigation
   const router = useRouter();
 
@@ -60,17 +56,14 @@ export default function Index() {
 
   // 1) Theme management
   useEffect(() => {
-    log.debug("[Index] Checking and updating theme...");
     const checkAndUpdateTheme = async () => {
       try {
         const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
         if (savedTheme !== null) {
           setIsDarkMode(savedTheme === "dark");
-          log.debug(`[Index] Loaded saved theme: ${savedTheme}`);
         } else {
           setIsDarkMode(systemColorScheme === "dark");
           await AsyncStorage.setItem(STORAGE_KEYS.THEME, systemColorScheme);
-          log.debug(`[Index] Saved system theme: ${systemColorScheme}`);
         }
       } catch (error) {
         log.error("[Index] Theme check error:", error);
@@ -85,33 +78,27 @@ export default function Index() {
 
   // 2) Initial data fetch
   useEffect(() => {
-    log.debug("[Index] Fetching initial data...");
-
     const fetchData = async () => {
       setLoading(true);
+
       try {
         const token = await AsyncStorage.getItem("token");
         if (!token) {
-          log.debug("[Index] No token found in AsyncStorage. Navigating to /auth...");
-          // Navigate back to login
-          router.replace("/login");
-          return; // Important to stop execution here
-        }
-
-        log.debug("[Index] Found token. Fetching and storing all cards...");
-        const allCards: any = await fetchAndStoreAllCards();
-        log.debug(`[Index] Fetched ${allCards?.length || 0} cards.`);
-
-        const user = await getStoredUser();
-        if (!user) {
-          log.debug("[Index] getStoredUser() returned null. Navigating to /auth...");
           router.replace("/login");
           return;
         }
-        log.debug(`[Index] Found user with id: ${user.id}`);
 
+        // Get data from API
+        const allCards: any = await fetchAndStoreAllCards();
+        const user = await getStoredUser();
+
+        if (!user) {
+          router.replace("/login");
+          return;
+        }
+
+        // Organize card data to display in wallet
         const walletData = getWalletData(allCards, user.cardIds);
-        log.debug(`[Index] Processed wallet data into ${walletData.length} categories.`);
         setCategories(walletData);
       } catch (err) {
         log.error("[Index] Error fetching wallet data:", err);
@@ -187,39 +174,32 @@ export default function Index() {
       try {
         const token = await AsyncStorage.getItem("token");
         if (!token) {
-          log.debug("[Index] No token found during refresh. Navigating to /auth...");
-          router.replace("/auth");
+          router.replace("/login");
           return;
         }
 
-        log.debug("[Index] Refresh: fetchAndStoreAllCards...");
-        const allCards: any = await fetchAndStoreAllCards(token);
-        log.debug(`[Index] Refresh: fetched ${allCards?.length || 0} cards.`);
+        const allCards: any = await fetchAndStoreAllCards();
 
         const user = await getStoredUser();
         if (!user) {
-          log.debug("[Index] Refresh: user not found. Navigating to /auth...");
-          router.replace("/auth");
+          router.replace("/login");
           return;
         }
         log.debug(`[Index] Refresh: got user with id: ${user.id}`);
 
         const walletData = getWalletData(allCards, user.cardIds);
-        log.debug(`[Index] Refresh: processed into ${walletData.length} categories.`);
         setCategories(walletData);
       } catch (err) {
         log.error("[Index] Error refreshing wallet data:", err);
         setError("Failed to refresh wallet data");
       } finally {
         setRefreshing(false);
-        log.debug("[Index] Pull-to-refresh complete.");
       }
     })();
   }, [router]);
 
   // On card press
   const handleCardPress = useCallback((card: any) => {
-    log.debug(`[Index] Card pressed: ${card.id}`);
     setSelectedCardId(card.id);
     setSelectedCardImageUrl(card.imageUrl);
 
@@ -251,7 +231,7 @@ export default function Index() {
         extrapolate: "clamp",
       });
 
-      const collectedCount = data.filter((card) => card.collected).length;
+      const collectedCount = data.filter((card: any) => card.collected).length;
 
       return (
         <Animated.View
@@ -294,7 +274,7 @@ export default function Index() {
           </View>
 
           <View style={styles.grid}>
-            {data.map((card, index) => {
+            {data.map((card: any, index: number) => {
               const scale = cardAnimations.get(card.id) || new Animated.Value(1);
 
               return (

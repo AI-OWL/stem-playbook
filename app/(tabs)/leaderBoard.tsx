@@ -149,13 +149,12 @@ const LeaderBoard = () => {
         id: player.id,
         name: player.name,
         points: player.points,
-        avatar: player.avatar || '/api/placeholder/40/40',
+        avatar: player.avatar || '/images/default-avator.png',
         rank: index + 1,
         isCurrentUser: player.id === currentUserId,
         animValue: new Animated.Value(1),
       }));
 
-      console.log('[DEBUG] Setting players:', newPlayers);
       if (refresh) {
         setPlayers(newPlayers);
       } else {

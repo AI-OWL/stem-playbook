@@ -39,6 +39,36 @@ export const addCardToUser = async (userId: string, cardId: string): Promise<Use
   }
 };
 
+// Update user's points and refresh stored data
+export const updateUserPoints = async (userId: string, pointsToAdd: number): Promise<User> => {
+  try {
+    const response = await api.put<User>(`/users/${userId}/points`, { points: pointsToAdd });
+    const updatedUser = response.data;
+    await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
+    return updatedUser;
+  } catch (error) {
+    console.error("Error updating user points:", error);
+    throw error;
+  }
+};
+
+// Change user's password
+export const changeUserPassword = async (
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> => {
+  try {
+    await api.put(`/users/${userId}/password`, {
+      currentPassword,
+      newPassword,
+    });
+  } catch (error) {
+    console.error("Error changing password:", error);
+    throw error;
+  }
+};
+
 // Logout user
 export const logoutUser = async (): Promise<void> => {
   try {

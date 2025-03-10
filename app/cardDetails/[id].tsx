@@ -17,14 +17,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Video, ResizeMode } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
 import { fetchCard } from "../services/cardService";
+import { updateUserPoints, getStoredUser } from "../services/userService";
 
-const handleRedeemPoints = (
+const handleRedeemPoints = async (
   cardId: string,
   setPointsRedeemed: (value: boolean) => void
 ) => {
   Alert.alert(
-    "Redeem Points",
-    "Are you sure you want to redeem 75 points for this card?",
+    "Redeem Card",
+    "Are you sure you want to redeem this card for 100 points?",
     [
       {
         text: "Cancel",
@@ -34,11 +35,23 @@ const handleRedeemPoints = (
         text: "Yes",
         onPress: async () => {
           try {
+            // Get current user from AsyncStorage
+            const user = await getStoredUser();
+            if (!user) {
+              throw new Error("User not found");
+            }
+
+            // Add 100 points
+            await updateUserPoints(user.id, 100);
+            
+            // Mark card as redeemed
             await AsyncStorage.setItem(`redeemed_${cardId}`, "true");
             setPointsRedeemed(true);
-            Alert.alert("Success", "Points have been redeemed successfully!");
+            
+            Alert.alert("Success", "Card redeemed! 100 points added to your account!");
           } catch (error) {
-            Alert.alert("Error", "Failed to redeem points. Please try again.");
+            console.error("Error redeeming card:", error);
+            Alert.alert("Error", "Failed to redeem card. Please try again.");
           }
         },
       },
@@ -67,7 +80,7 @@ export default function CardDetailsScreen() {
         if (!token) {
           throw new Error("No token found");
         }
-        const card = await fetchCard(id as string, token);
+        const card = await fetchCard(id as string);
         setCardData({
           name: card.name,
           tagline: card.tagline,
@@ -149,7 +162,7 @@ export default function CardDetailsScreen() {
             disabled={pointsRedeemed}
           >
             <Text style={styles.redeemButtonText}>
-              {pointsRedeemed ? "Points Redeemed" : "Redeem 75 Points"}
+              {pointsRedeemed ? "Card Redeemed" : "Redeem for 100 Points"}
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -173,7 +186,7 @@ const styles = StyleSheet.create({
   },
   stickyTitleContainer: {
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === "android" ? RNStatusBar.currentHeight + 10 : 10,
+    paddingTop: Platform.OS === "android" ? (RNStatusBar.currentHeight || 0) + 10 : 10,
     paddingBottom: 10,
     backgroundColor: "#121212",
     borderBottomWidth: 1,

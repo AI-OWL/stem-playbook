@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
+import { getStoredUser } from '../services/userService'; // Import the service
 
 export default function AccountDetailsScreen() {
   const router = useRouter();
@@ -24,8 +25,8 @@ export default function AccountDetailsScreen() {
   const colors = Colors[isDarkMode ? 'dark' : 'light'];
 
   const [formData, setFormData] = useState({
-    name: 'John Doe',
-    email: 'john.doe@example.com',
+    name: '',
+    email: '',
   });
 
   const [isEdited, setIsEdited] = useState(false);
@@ -50,12 +51,26 @@ export default function AccountDetailsScreen() {
 
   const loadUserData = async () => {
     try {
-      const userData = await AsyncStorage.getItem('userData');
-      if (userData) {
-        setFormData(JSON.parse(userData));
+      const user = await getStoredUser(); // Use the service to get user data
+      if (user) {
+        setFormData({
+          name: user.name,
+          email: user.email,
+        });
+      } else {
+        // Fallback to defaults if no user data is found
+        setFormData({
+          name: 'John Doe',
+          email: 'john.doe@example.com',
+        });
       }
     } catch (error) {
       console.error('Error loading user data:', error);
+      // Fallback in case of error
+      setFormData({
+        name: 'John Doe',
+        email: 'john.doe@example.com',
+      });
     }
   };
 
@@ -81,13 +96,20 @@ export default function AccountDetailsScreen() {
     }
 
     try {
-      await AsyncStorage.setItem('userData', JSON.stringify(formData));
+      // Note: This only updates local AsyncStorage. You might want to add an API call
+      // to update the backend if your app supports profile updates.
+      const user = await getStoredUser();
+      if (user) {
+        const updatedUser = { ...user, name: formData.name, email: formData.email };
+        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      }
       Alert.alert(
         'Success',
         'Account details updated successfully',
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (error) {
+      console.error('Error saving user data:', error);
       Alert.alert('Error', 'Failed to save changes. Please try again.');
     }
   };

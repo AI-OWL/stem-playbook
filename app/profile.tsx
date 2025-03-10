@@ -7,7 +7,6 @@ import {
   Switch,
   Image,
   ScrollView,
-  Alert,
   useColorScheme,
   AppState,
   SafeAreaView,
@@ -29,10 +28,9 @@ export default function ProfileScreen() {
   const [userData, setUserData] = useState(null); // Initialize as null
 
   useEffect(() => {
-    // Function to load user data
     const loadUserData = async () => {
       try {
-        const user = await getStoredUser(); // Wait for the Promise to resolve
+        const user = await getStoredUser();
         setUserData(user);
       } catch (error) {
         console.error('Error loading user data:', error);
@@ -42,11 +40,10 @@ export default function ProfileScreen() {
     loadThemePreference();
     loadUserData();
 
-    // Listen for system theme changes
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (nextAppState === 'active') {
         loadThemePreference();
-        loadUserData(); // Refresh user data when app becomes active
+        loadUserData();
       }
     });
 
@@ -87,28 +84,7 @@ export default function ProfileScreen() {
   };
 
   const handlePasswordChange = () => {
-    Alert.alert(
-      'Change Password',
-      'A verification code will be sent to your email.',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Send Code',
-          onPress: () => sendVerificationEmail(),
-        },
-      ]
-    );
-  };
-
-  const sendVerificationEmail = () => {
-    Alert.alert(
-      'Verification Email Sent',
-      'Please check your email for the verification code.',
-      [{ text: 'OK' }]
-    );
+    router.push('/profile/change-password'); // Navigate to new screen
   };
 
   const handleEditProfile = () => {
@@ -123,7 +99,6 @@ export default function ProfileScreen() {
     router.push('/profile/notifications');
   };
 
-  // Show loading state while userData is null
   if (!userData) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -146,7 +121,7 @@ export default function ProfileScreen() {
         <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.icon }]}>
           <View style={styles.profileImageContainer}>
             <Image
-              source={/*userData.profilePic || */require('@/assets/images/default-avatar.png')}
+              source={require('@/assets/images/default-avatar.png')}
               style={styles.profileImage}
             />
             <TouchableOpacity

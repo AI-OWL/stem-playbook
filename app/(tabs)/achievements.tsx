@@ -539,6 +539,7 @@ const styles = StyleSheet.create({
   },
   listFooter: {
     height: 48,
+    marginBottom: 38,
   },
   emptyList: {
     flex: 1,

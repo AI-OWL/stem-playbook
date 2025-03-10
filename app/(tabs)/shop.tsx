@@ -24,12 +24,12 @@ import Header from "@/components/Header";
 import StoreItem from "@/components/StoreItem";
 import StoreItemModal from "@/components/StoreItemModal";
 import { Colors } from "@/constants/Colors";
+import { getStoredUser, updateUserPoints } from "../services/userService"; // Import user service
 
 const ITEMS_PER_PAGE = 10;
 const ANIMATION_DURATION = 300;
 const STORAGE_KEYS = {
   THEME: "theme",
-  USER_POINTS: "userPoints",
 };
 
 const MOCK_STORE_ITEMS = [
@@ -93,9 +93,10 @@ const MOCK_STORE_ITEMS = [
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
-function ShopContent({ userPoints = 1000, onPurchaseItem, isItemPurchased }) {
+function ShopContent({ onPurchaseItem, isItemPurchased }) {
   const systemColorScheme = useColorScheme();
   const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === "dark");
+  const [userPoints, setUserPoints] = useState(0); // Initialize with 0
   const colors = useMemo(
     () => Colors[isDarkMode ? "dark" : "light"],
     [isDarkMode],
@@ -124,7 +125,7 @@ function ShopContent({ userPoints = 1000, onPurchaseItem, isItemPurchased }) {
 
   useEffect(() => {
     const initializeApp = async () => {
-      await Promise.all([loadThemePreference(), loadInitialData()]);
+      await Promise.all([loadThemePreference(), loadInitialData(), loadUserPoints()]);
     };
 
     initializeApp();
@@ -135,6 +136,18 @@ function ShopContent({ userPoints = 1000, onPurchaseItem, isItemPurchased }) {
       }
     };
   }, []);
+
+  // Load user's points from AsyncStorage/service
+  const loadUserPoints = async () => {
+    try {
+      const user = await getStoredUser();
+      if (user && user.points !== undefined) {
+        setUserPoints(user.points);
+      }
+    } catch (error) {
+      console.error("Error loading user points:", error);
+    }
+  };
 
   useEffect(() => {
     const checkTheme = async () => {
@@ -227,6 +240,7 @@ function ShopContent({ userPoints = 1000, onPurchaseItem, isItemPurchased }) {
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     loadItems(true);
+    loadUserPoints(); // Refresh points too
   }, []);
 
   const handleLoadMore = useCallback(() => {
@@ -261,31 +275,46 @@ function ShopContent({ userPoints = 1000, onPurchaseItem, isItemPurchased }) {
         {
           text: "Purchase",
           onPress: async () => {
-            const success = await onPurchaseItem(item.id, item.points);
-
-            if (success) {
-              if (item.animValue) {
-                Animated.sequence([
-                  Animated.timing(item.animValue, {
-                    toValue: 0.8,
-                    duration: ANIMATION_DURATION / 2,
-                    useNativeDriver: true,
-                  }),
-                  Animated.spring(item.animValue, {
-                    toValue: 1,
-                    tension: 50,
-                    friction: 7,
-                    useNativeDriver: true,
-                  }),
-                ]).start();
+            try {
+              const user = await getStoredUser();
+              if (!user) {
+                throw new Error("User not found");
               }
 
-              Alert.alert(
-                "Success",
-                "Item purchased successfully!",
-                [{ text: "OK", onPress: () => setModalVisible(false) }]
-              );
-            } else {
+              // Deduct points for purchase
+              await updateUserPoints(user.id, -item.points);
+              const success = await onPurchaseItem(item.id, item.points);
+
+              if (success) {
+                // Update local points state
+                setUserPoints((prev) => prev - item.points);
+
+                if (item.animValue) {
+                  Animated.sequence([
+                    Animated.timing(item.animValue, {
+                      toValue: 0.8,
+                      duration: ANIMATION_DURATION / 2,
+                      useNativeDriver: true,
+                    }),
+                    Animated.spring(item.animValue, {
+                      toValue: 1,
+                      tension: 50,
+                      friction: 7,
+                      useNativeDriver: true,
+                    }),
+                  ]).start();
+                }
+
+                Alert.alert(
+                  "Success",
+                  "Item purchased successfully!",
+                  [{ text: "OK", onPress: () => setModalVisible(false) }]
+                );
+              } else {
+                throw new Error("Purchase failed");
+              }
+            } catch (error) {
+              console.error("Purchase error:", error);
               Alert.alert(
                 "Error",
                 "Failed to complete purchase. Please try again."
@@ -487,6 +516,7 @@ function ShopContent({ userPoints = 1000, onPurchaseItem, isItemPurchased }) {
         maxToRenderPerBatch={5}
         windowSize={5}
         initialNumToRender={10}
+        ListFooterComponentStyle={{ marginBottom: 64 }}
       />
     </ThemedView>
   );
@@ -567,10 +597,9 @@ const styles = StyleSheet.create({
   },
 });
 
-export default function Shop({ userPoints = 1000, onPurchaseItem = () => true, isItemPurchased = () => false }) {
+export default function Shop({ onPurchaseItem = () => true, isItemPurchased = () => false }) {
   return (
     <ShopContent 
-      userPoints={userPoints}
       onPurchaseItem={onPurchaseItem}
       isItemPurchased={isItemPurchased}
     />

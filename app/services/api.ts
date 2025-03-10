@@ -12,14 +12,12 @@ const api = axios.create({
 // Attach token to every request
 api.interceptors.request.use(async (config) => {
   const token = await AsyncStorage.getItem("token");
-  console.debug("[API] Attaching token to request:", token);
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
-
 
 // Handle expired or invalid tokens globally
 api.interceptors.response.use(
@@ -32,18 +30,14 @@ api.interceptors.response.use(
     });
 
     if (error.response?.status === 401 || error.response?.status === 403) {
-      console.warn("[API] Token expired or invalid. Logging out...");
-
       await AsyncStorage.removeItem("token");
       await AsyncStorage.removeItem("user");
       await AsyncStorage.removeItem("cards");
 
-      Alert.alert("Session Expired", "Your session has expired. Please log in again.");
       router.replace("/login");
     }
     return Promise.reject(error);
   }
 );
-
 
 export default api;
