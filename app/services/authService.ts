@@ -10,7 +10,9 @@ import { User } from "../types";
  */
 export async function login(email: string, password: string): Promise<{ token: string; user: User }> {
   const response = await api.post("/auth/login", { email, password });
+
   const { token, user } = response.data;
+  console.debug("[AuthService] Received token:", token);
 
   // Store token and user in AsyncStorage
   await AsyncStorage.setItem("token", token);

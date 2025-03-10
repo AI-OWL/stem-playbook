@@ -2,18 +2,22 @@ import api from "./api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Card } from "../types";
 
-// Fetch and store all cards in AsyncStorage
 export const fetchAndStoreAllCards = async (): Promise<Card[]> => {
   try {
+    console.debug("[CardService] Fetching all cards...");
     const response = await api.get<Card[]>("/cards");
+
+    console.debug("[CardService] API Response:", response.status, response.data);
+
     const cards = response.data;
     await AsyncStorage.setItem("cards", JSON.stringify(cards));
     return cards;
-  } catch (error) {
-    console.error("Error fetching cards:", error);
+  } catch (error: any) {
+    console.error("[CardService] Error fetching cards:", error.response?.status, error.response?.data || error.message);
     throw error;
   }
 };
+
 
 // Fetch a single card by ID
 export const fetchCard = async (cardId: string): Promise<Card> => {

@@ -105,7 +105,7 @@ export default function Index() {
         const user = await getStoredUser();
         if (!user) {
           log.debug("[Index] getStoredUser() returned null. Navigating to /auth...");
-          router.replace("/auth");
+          router.replace("/login");
           return;
         }
         log.debug(`[Index] Found user with id: ${user.id}`);
