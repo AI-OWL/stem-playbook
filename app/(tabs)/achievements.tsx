@@ -29,6 +29,9 @@ const STORAGE_KEYS = {
   STATS: 'achievementStats',
 };
 
+// Flag to indicate "Coming Soon" mode
+const IS_COMING_SOON = true;
+
 const MOCK_ACHIEVEMENTS = [
   {
     id: '1',
@@ -90,7 +93,7 @@ const MOCK_ACHIEVEMENTS = [
     completed: false,
     type: 'milestone',
     rarity: 'legendary'
-  }
+  },
 ];
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
@@ -101,7 +104,7 @@ const Achievements = () => {
   const colors = useMemo(() => Colors[isDarkMode ? 'dark' : 'light'], [isDarkMode]);
 
   const [achievements, setAchievements] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Set to false by default for "Coming Soon"
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({
@@ -117,186 +120,207 @@ const Achievements = () => {
 
   // Enhanced theme management
   useEffect(() => {
-    const checkAndUpdateTheme = async () => {
-      try {
-        const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
-        if (savedTheme !== null) {
-          setIsDarkMode(savedTheme === 'dark');
-        } else {
-          setIsDarkMode(systemColorScheme === 'dark');
-          await AsyncStorage.setItem(STORAGE_KEYS.THEME, systemColorScheme);
+    if (!IS_COMING_SOON) {
+      const checkAndUpdateTheme = async () => {
+        try {
+          const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
+          if (savedTheme !== null) {
+            setIsDarkMode(savedTheme === 'dark');
+          } else {
+            setIsDarkMode(systemColorScheme === 'dark');
+            await AsyncStorage.setItem(STORAGE_KEYS.THEME, systemColorScheme);
+          }
+        } catch (error) {
+          console.error('Theme check error:', error);
         }
-      } catch (error) {
-        console.error('Theme check error:', error);
-      }
-    };
+      };
 
-    checkAndUpdateTheme();
-    const themeInterval = setInterval(checkAndUpdateTheme, 1000);
+      checkAndUpdateTheme();
+      const themeInterval = setInterval(checkAndUpdateTheme, 1000);
 
-    return () => clearInterval(themeInterval);
+      return () => clearInterval(themeInterval);
+    }
   }, [systemColorScheme]);
 
   // Theme change handler
   const toggleTheme = useCallback(async () => {
-    try {
-      const newTheme = !isDarkMode;
-      setIsDarkMode(newTheme);
-      await AsyncStorage.setItem(STORAGE_KEYS.THEME, newTheme ? 'dark' : 'light');
-    } catch (error) {
-      console.error('Theme toggle error:', error);
+    if (!IS_COMING_SOON) {
+      try {
+        const newTheme = !isDarkMode;
+        setIsDarkMode(newTheme);
+        await AsyncStorage.setItem(STORAGE_KEYS.THEME, newTheme ? 'dark' : 'light');
+      } catch (error) {
+        console.error('Theme toggle error:', error);
+      }
     }
   }, [isDarkMode]);
 
   useEffect(() => {
-    initializeApp();
+    if (!IS_COMING_SOON) {
+      initializeApp();
 
-    return () => {
-      isMounted.current = false;
-      if (refreshInterval.current) {
-        clearInterval(refreshInterval.current);
-      }
-      itemAnimations.clear();
-    };
+      return () => {
+        isMounted.current = false;
+        if (refreshInterval.current) {
+          clearInterval(refreshInterval.current);
+        }
+        itemAnimations.clear();
+      };
+    }
   }, []);
 
   const initializeApp = async () => {
-    try {
-      await Promise.all([
-        loadThemePreference(),
-        loadInitialData(),
-      ]);
+    if (!IS_COMING_SOON) {
+      try {
+        await Promise.all([
+          loadThemePreference(),
+          loadInitialData(),
+        ]);
 
-      refreshInterval.current = setInterval(() => {
-        if (!refreshing && isMounted.current) {
-          loadAchievements(true);
-        }
-      }, REFRESH_INTERVAL);
-    } catch (error) {
-      console.error('Initialization error:', error);
-      setError('Failed to initialize app');
+        refreshInterval.current = setInterval(() => {
+          if (!refreshing && isMounted.current) {
+            loadAchievements(true);
+          }
+        }, REFRESH_INTERVAL);
+      } catch (error) {
+        console.error('Initialization error:', error);
+        setError('Failed to initialize app');
+      }
     }
   };
 
   const loadThemePreference = async () => {
-    try {
-      const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
-      if (savedTheme && isMounted.current) {
-        setIsDarkMode(savedTheme === 'dark');
+    if (!IS_COMING_SOON) {
+      try {
+        const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
+        if (savedTheme && isMounted.current) {
+          setIsDarkMode(savedTheme === 'dark');
+        }
+      } catch (error) {
+        console.error('Theme loading error:', error);
       }
-    } catch (error) {
-      console.error('Theme loading error:', error);
     }
   };
 
   const loadInitialData = async () => {
-    try {
-      await Promise.all([
-        loadAchievements(true),
-        loadUserStats(),
-      ]);
-    } catch (error) {
-      console.error('Initial data loading error:', error);
-      setError('Failed to load initial data');
+    if (!IS_COMING_SOON) {
+      try {
+        await Promise.all([
+          loadAchievements(true),
+          loadUserStats(),
+        ]);
+      } catch (error) {
+        console.error('Initial data loading error:', error);
+        setError('Failed to load initial data');
+      }
     }
   };
 
   const loadUserStats = async () => {
-    try {
-      const savedStats = await AsyncStorage.getItem(STORAGE_KEYS.STATS);
-      if (savedStats && isMounted.current) {
-        setStats(JSON.parse(savedStats));
+    if (!IS_COMING_SOON) {
+      try {
+        const savedStats = await AsyncStorage.getItem(STORAGE_KEYS.STATS);
+        if (savedStats && isMounted.current) {
+          setStats(JSON.parse(savedStats));
+        }
+      } catch (error) {
+        console.error('Stats loading error:', error);
+        setError('Failed to load user stats');
       }
-    } catch (error) {
-      console.error('Stats loading error:', error);
-      setError('Failed to load user stats');
     }
   };
 
   const animateItems = useCallback((items) => {
-    const animations = items.map((item, index) => {
-      if (!itemAnimations.has(item.id)) {
-        itemAnimations.set(item.id, new Animated.Value(0));
-      }
-      return Animated.spring(itemAnimations.get(item.id), {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        delay: index * ANIMATION_DELAY,
-        useNativeDriver: true,
+    if (!IS_COMING_SOON) {
+      const animations = items.map((item, index) => {
+        if (!itemAnimations.has(item.id)) {
+          itemAnimations.set(item.id, new Animated.Value(0));
+        }
+        return Animated.spring(itemAnimations.get(item.id), {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          delay: index * ANIMATION_DELAY,
+          useNativeDriver: true,
+        });
       });
-    });
 
-    Animated.stagger(ANIMATION_DELAY, animations).start();
+      Animated.stagger(ANIMATION_DELAY, animations).start();
+    }
   }, []);
 
   const loadAchievements = async (refresh = false) => {
-    try {
-      if (refresh) {
-        setError(null);
-      }
-      setLoading(true);
+    if (!IS_COMING_SOON) {
+      try {
+        if (refresh) {
+          setError(null);
+        }
+        setLoading(true);
 
-      // Simulated API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+        // Simulated API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-      if (isMounted.current) {
-        // Prefetch images for better loading performance
-        const prefetchPromises = MOCK_ACHIEVEMENTS
-          .filter(achievement => achievement.imageUrl)
-          .map(achievement => {
-            // For require'd images, no prefetching needed
-            if (typeof achievement.imageUrl === 'number') {
-              return Promise.resolve();
-            }
-            // For URLs, prefetch if it's a string URL
-            if (typeof achievement.imageUrl === 'string' &&
-                achievement.imageUrl.startsWith('http')) {
-              return Image.prefetch(achievement.imageUrl).catch(err => {
-                console.warn('Failed to prefetch:', achievement.imageUrl, err);
+        if (isMounted.current) {
+          // Prefetch images for better loading performance
+          const prefetchPromises = MOCK_ACHIEVEMENTS
+            .filter(achievement => achievement.imageUrl)
+            .map(achievement => {
+              // For require'd images, no prefetching needed
+              if (typeof achievement.imageUrl === 'number') {
                 return Promise.resolve();
-              });
-            }
-            return Promise.resolve();
-          });
+              }
+              // For URLs, prefetch if it's a string URL
+              if (typeof achievement.imageUrl === 'string' &&
+                  achievement.imageUrl.startsWith('http')) {
+                return Image.prefetch(achievement.imageUrl).catch(err => {
+                  console.warn('Failed to prefetch:', achievement.imageUrl, err);
+                  return Promise.resolve();
+                });
+              }
+              return Promise.resolve();
+            });
 
-        // Wait for all prefetches to complete or fail
-        await Promise.all(prefetchPromises);
+          // Wait for all prefetches to complete or fail
+          await Promise.all(prefetchPromises);
 
-        setAchievements(MOCK_ACHIEVEMENTS);
-        animateItems(MOCK_ACHIEVEMENTS);
+          setAchievements(MOCK_ACHIEVEMENTS);
+          animateItems(MOCK_ACHIEVEMENTS);
 
-        // Update stats
-        const completed = MOCK_ACHIEVEMENTS.filter(a => a.completed).length;
-        const totalPoints = MOCK_ACHIEVEMENTS.reduce((sum, a) =>
-          sum + (a.completed ? a.points : 0), 0);
-        const newStats = {
-          completed,
-          total: MOCK_ACHIEVEMENTS.length,
-          points: totalPoints,
-        };
-        setStats(newStats);
-        await AsyncStorage.setItem(STORAGE_KEYS.STATS, JSON.stringify(newStats));
-      }
+          // Update stats
+          const completed = MOCK_ACHIEVEMENTS.filter(a => a.completed).length;
+          const totalPoints = MOCK_ACHIEVEMENTS.reduce((sum, a) =>
+            sum + (a.completed ? a.points : 0), 0);
+          const newStats = {
+            completed,
+            total: MOCK_ACHIEVEMENTS.length,
+            points: totalPoints,
+          };
+          setStats(newStats);
+          await AsyncStorage.setItem(STORAGE_KEYS.STATS, JSON.stringify(newStats));
+        }
 
-    } catch (error) {
-      console.error('Achievements loading error:', error);
-      setError('Failed to load achievements');
-      Alert.alert('Error', 'Failed to load achievements. Please try again.');
-    } finally {
-      if (isMounted.current) {
-        setLoading(false);
-        setRefreshing(false);
+      } catch (error) {
+        console.error('Achievements loading error:', error);
+        setError('Failed to load achievements');
+        Alert.alert('Error', 'Failed to load achievements. Please try again.');
+      } finally {
+        if (isMounted.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     }
   };
 
   const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadAchievements(true);
+    if (!IS_COMING_SOON) {
+      setRefreshing(true);
+      loadAchievements(true);
+    }
   }, []);
 
-    const handleRedeem = useCallback(async (achievement) => {
+  const handleRedeem = useCallback(async (achievement) => {
+    if (!IS_COMING_SOON) {
       if (!achievement.completed) {
         Alert.alert('Not Available', 'Complete this achievement to claim your reward!');
         return;
@@ -334,34 +358,35 @@ const Achievements = () => {
         console.error('Achievement redemption error:', error);
         Alert.alert('Error', 'Failed to redeem achievement. Please try again.');
       }
-    }, []);
+    }
+  }, []);
 
-    const renderItem = useCallback(({ item }) => {
-      const scale = itemAnimations.get(item.id) || new Animated.Value(1);
+  const renderItem = useCallback(({ item }) => {
+    const scale = itemAnimations.get(item.id) || new Animated.Value(1);
 
-      return (
-        <Animated.View
-          style={{
-            transform: [{ scale }],
-            opacity: scale,
-            width: '100%',
-            alignItems: 'center',
-          }}
-        >
-          <AchievementItem
-            title={item.title}
-            description={item.description}
-            imageUrl={item.imageUrl}
-            points={item.points}
-            completed={item.completed}
-            progress={item.progress}
-            total={item.total}
-            rarity={item.rarity}
-            onRedeem={() => handleRedeem(item)}
-          />
-        </Animated.View>
-      );
-    }, [handleRedeem]);
+    return (
+      <Animated.View
+        style={{
+          transform: [{ scale }],
+          opacity: scale,
+          width: '100%',
+          alignItems: 'center',
+        }}
+      >
+        <AchievementItem
+          title={item.title}
+          description={item.description}
+          imageUrl={item.imageUrl}
+          points={item.points}
+          completed={item.completed}
+          progress={item.progress}
+          total={item.total}
+          rarity={item.rarity}
+          onRedeem={() => handleRedeem(item)}
+        />
+      </Animated.View>
+    );
+  }, [handleRedeem]);
 
   const renderHeader = useCallback(() => (
     <Animated.View
@@ -443,50 +468,78 @@ const Achievements = () => {
         iconColor={colors.tint}
       />
 
-        <AnimatedFlatList
-          data={achievements}
-          keyExtractor={item => item.id}
-          renderItem={renderItem}
-          ListHeaderComponent={renderHeader}
-          ListEmptyComponent={renderEmpty}
-          contentContainerStyle={[
-            styles.listContainer,
-            achievements.length === 0 && styles.emptyList,
-            { backgroundColor: colors.background }
-          ]}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
-          )}
-          scrollEventThrottle={16}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={colors.tint}
-              colors={[colors.tint]}
-              progressBackgroundColor={colors.card}
-            />
-          }
-          ListFooterComponent={<View style={styles.listFooter} />}
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={3}
-          updateCellsBatchingPeriod={50}
-          windowSize={7}
-          initialNumToRender={5}
-          onEndReachedThreshold={0.5}
-          maintainVisibleContentPosition={{
-            minIndexForVisible: 0,
-            autoscrollToTopThreshold: 10,
-          }}
-          onScrollToIndexFailed={() => {}}
-          showsVerticalScrollIndicator={false}
-          getItemLayout={(data, index) => ({
-            length: 170, // Approximate height of each item
-            offset: 170 * index,
-            index,
-          })}
+      {/* Commented out original achievements content for production */}
+      {/*
+      <AnimatedFlatList
+        data={achievements}
+        keyExtractor={item => item.id}
+        renderItem={renderItem}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmpty}
+        contentContainerStyle={[
+          styles.listContainer,
+          achievements.length === 0 && styles.emptyList,
+          { backgroundColor: colors.background }
+        ]}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.tint}
+            colors={[colors.tint]}
+            progressBackgroundColor={colors.card}
+          />
+        }
+        ListFooterComponent={<View style={styles.listFooter} />}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={3}
+        updateCellsBatchingPeriod={50}
+        windowSize={7}
+        initialNumToRender={5}
+        onEndReachedThreshold={0.5}
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 0,
+          autoscrollToTopThreshold: 10,
+        }}
+        onScrollToIndexFailed={() => {}}
+        showsVerticalScrollIndicator={false}
+        getItemLayout={(data, index) => ({
+          length: 170, // Approximate height of each item
+          offset: 170 * index,
+          index,
+        })}
+      />
+      */}
+
+      {/* Coming Soon Page */}
+      <View style={[styles.comingSoonContainer, { backgroundColor: colors.background }]}>
+        <FontAwesome
+          name="trophy"
+          size={64}
+          color={isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.icon}
         />
+        <ThemedText
+          style={[
+            styles.comingSoonText,
+            { color: isDarkMode ? "#FFFFFF" : colors.text },
+          ]}
+        >
+          Achievements Coming Soon!
+        </ThemedText>
+        <ThemedText
+          style={[
+            styles.comingSoonSubtext,
+            { color: isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.textSecondary },
+          ]}
+        >
+          We're working on exciting achievements for you. Check back later!
+        </ThemedText>
+      </View>
     </ThemedView>
   );
 };
@@ -564,6 +617,29 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
+  },
+  // Coming Soon styles
+  comingSoonContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingTop: 80, // Added paddingTop to account for the Header height
+    paddingBottom: 32,
+    flexDirection: 'column',
+    gap: 24, // Ensures spacing between icon and text
+  },
+  comingSoonText: {
+    fontSize: 25,
+    fontWeight: 'bold',
+    marginTop: 0, // Removed marginTop since gap handles spacing
+    textAlign: 'center',
+  },
+  comingSoonSubtext: {
+    fontSize: 16,
+    marginTop: 0, // Removed marginTop since gap handles spacing
+    textAlign: 'center',
+    paddingHorizontal: 16,
   },
 });
 

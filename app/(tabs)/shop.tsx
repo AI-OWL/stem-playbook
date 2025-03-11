@@ -24,7 +24,7 @@ import Header from "@/components/Header";
 import StoreItem from "@/components/StoreItem";
 import StoreItemModal from "@/components/StoreItemModal";
 import { Colors } from "@/constants/Colors";
-import { getStoredUser, updateUserPoints } from "../services/userService"; // Import user service
+import { getStoredUser, updateUserPoints } from "../services/userService";
 
 const ITEMS_PER_PAGE = 10;
 const ANIMATION_DURATION = 300;
@@ -96,48 +96,20 @@ const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 function ShopContent({ onPurchaseItem, isItemPurchased }) {
   const systemColorScheme = useColorScheme();
   const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === "dark");
-  const [userPoints, setUserPoints] = useState(0); // Initialize with 0
+  const [userPoints, setUserPoints] = useState(0);
   const colors = useMemo(
     () => Colors[isDarkMode ? "dark" : "light"],
     [isDarkMode],
   );
 
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
-
-  const scrollY = useMemo(() => new Animated.Value(0), []);
-  const refreshInterval = useRef(null);
-  const headerOpacity = useMemo(
-    () =>
-      scrollY.interpolate({
-        inputRange: [0, 100],
-        outputRange: [1, 0.9],
-        extrapolate: "clamp",
-      }),
-    [],
-  );
-
   useEffect(() => {
     const initializeApp = async () => {
-      await Promise.all([loadThemePreference(), loadInitialData(), loadUserPoints()]);
+      await Promise.all([loadThemePreference(), loadUserPoints()]);
     };
 
     initializeApp();
-
-    return () => {
-      if (refreshInterval.current) {
-        clearInterval(refreshInterval.current);
-      }
-    };
   }, []);
 
-  // Load user's points from AsyncStorage/service
   const loadUserPoints = async () => {
     try {
       const user = await getStoredUser();
@@ -180,290 +152,6 @@ function ShopContent({ onPurchaseItem, isItemPurchased }) {
     }
   };
 
-  const loadInitialData = async () => {
-    try {
-      await loadItems(true);
-    } catch (error) {
-      console.error("Initialization error:", error);
-      Alert.alert("Error", "Failed to initialize the store. Please try again.");
-    }
-  };
-
-  const loadItems = async (refresh = false) => {
-    if (!hasMore && !refresh) return;
-    if (isLoadingMore && !refresh) return;
-
-    try {
-      if (refresh) {
-        setPage(1);
-        setHasMore(true);
-        setLoading(true);
-      } else {
-        setIsLoadingMore(true);
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const newItems = MOCK_STORE_ITEMS.map((item) => ({
-        ...item,
-        animValue: new Animated.Value(0),
-      }));
-
-      if (refresh) {
-        setItems(newItems);
-      } else {
-        setItems((prev) => [...prev, ...newItems]);
-      }
-
-      setHasMore(newItems.length === ITEMS_PER_PAGE);
-
-      Animated.parallel(
-        newItems.map((item) =>
-          Animated.spring(item.animValue, {
-            toValue: 1,
-            tension: 50,
-            friction: 7,
-            useNativeDriver: true,
-          }),
-        ),
-      ).start();
-    } catch (error) {
-      console.error("Error loading items:", error);
-      Alert.alert("Error", "Failed to load store items. Please try again.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setIsLoadingMore(false);
-    }
-  };
-
-  const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadItems(true);
-    loadUserPoints(); // Refresh points too
-  }, []);
-
-  const handleLoadMore = useCallback(() => {
-    if (!loading && !isLoadingMore && hasMore) {
-      setPage((prev) => prev + 1);
-      loadItems();
-    }
-  }, [loading, isLoadingMore, hasMore]);
-
-  const handlePurchase = useCallback(async (item) => {
-    if (isItemPurchased(item.id)) {
-      Alert.alert(
-        "Already Purchased",
-        `You already own ${item.title}.`
-      );
-      return;
-    }
-
-    if (userPoints < item.points) {
-      Alert.alert(
-        "Insufficient Points",
-        "You need more points to purchase this item.",
-      );
-      return;
-    }
-
-    Alert.alert(
-      "Confirm Purchase",
-      `Are you sure you want to purchase ${item.title} for ${item.points} points?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Purchase",
-          onPress: async () => {
-            try {
-              const user = await getStoredUser();
-              if (!user) {
-                throw new Error("User not found");
-              }
-
-              // Deduct points for purchase
-              await updateUserPoints(user.id, -item.points);
-              const success = await onPurchaseItem(item.id, item.points);
-
-              if (success) {
-                // Update local points state
-                setUserPoints((prev) => prev - item.points);
-
-                if (item.animValue) {
-                  Animated.sequence([
-                    Animated.timing(item.animValue, {
-                      toValue: 0.8,
-                      duration: ANIMATION_DURATION / 2,
-                      useNativeDriver: true,
-                    }),
-                    Animated.spring(item.animValue, {
-                      toValue: 1,
-                      tension: 50,
-                      friction: 7,
-                      useNativeDriver: true,
-                    }),
-                  ]).start();
-                }
-
-                Alert.alert(
-                  "Success",
-                  "Item purchased successfully!",
-                  [{ text: "OK", onPress: () => setModalVisible(false) }]
-                );
-              } else {
-                throw new Error("Purchase failed");
-              }
-            } catch (error) {
-              console.error("Purchase error:", error);
-              Alert.alert(
-                "Error",
-                "Failed to complete purchase. Please try again."
-              );
-            }
-          },
-        },
-      ],
-    );
-  }, [userPoints, onPurchaseItem, isItemPurchased]);
-
-  const renderHeader = useCallback(() => {
-    return (
-      <Animated.View
-        style={[
-          styles.headerContainer,
-          {
-            backgroundColor: colors.background,
-            opacity: headerOpacity,
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <ThemedText
-          style={[
-            styles.pointsText,
-            { color: isDarkMode ? "#FFFFFF" : colors.text },
-          ]}
-        >
-          <FontAwesome
-            name="star"
-            size={20}
-            color={isDarkMode ? "#FFD700" : colors.tint}
-          />{" "}
-          {userPoints} Points
-        </ThemedText>
-      </Animated.View>
-    );
-  }, [colors, headerOpacity, isDarkMode, userPoints]);
-
-  const renderFooter = useCallback(() => {
-    if (!hasMore) return null;
-    return (
-      <View style={styles.footer}>
-        <ActivityIndicator color={isDarkMode ? "#FFFFFF" : colors.tint} />
-        <ThemedText
-          style={[
-            styles.footerText,
-            {
-              color: isDarkMode
-                ? "rgba(255, 255, 255, 0.7)"
-                : colors.textSecondary,
-            },
-          ]}
-        >
-          Loading more items...
-        </ThemedText>
-      </View>
-    );
-  }, [hasMore, colors, isDarkMode]);
-
-  const renderEmpty = useCallback(
-    () => (
-      <View
-        style={[styles.emptyContainer, { backgroundColor: colors.background }]}
-      >
-        <FontAwesome
-          name="shopping-basket"
-          size={48}
-          color={isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.icon}
-        />
-        <ThemedText
-          style={[
-            styles.emptyText,
-            {
-              color: isDarkMode
-                ? "rgba(255, 255, 255, 0.7)"
-                : colors.textSecondary,
-            },
-          ]}
-        >
-          No items available
-        </ThemedText>
-      </View>
-    ),
-    [colors, isDarkMode],
-  );
-
-  const handleItemPress = useCallback((item) => {
-    setSelectedItem(item);
-    setModalVisible(true);
-  }, []);
-
-  const renderItem = useCallback(
-    ({ item, index }) => {
-      return (
-        <Animated.View
-          style={[
-            styles.itemContainer,
-            {
-              opacity: item.animValue,
-              transform: [{ scale: item.animValue }],
-            },
-          ]}
-        >
-          <StoreItem
-            id={item.id}
-            title={item.title}
-            body={item.body}
-            points={item.points}
-            imageUrl={item.imageUrl}
-            type={item.type}
-            rarity={item.rarity}
-            onPress={() => handleItemPress(item)}
-            canAfford={userPoints >= item.points}
-            alreadyPurchased={isItemPurchased(item.id)}
-          />
-        </Animated.View>
-      );
-    },
-    [scrollY, isDarkMode, handleItemPress, userPoints, isItemPurchased],
-  );
-
-  const keyExtractor = useCallback((item) => item.id, []);
-
-  if (loading && !refreshing) {
-    return (
-      <ThemedView
-        style={[
-          styles.loadingContainer,
-          { backgroundColor: colors.background },
-        ]}
-      >
-        <ActivityIndicator
-          size="large"
-          color={isDarkMode ? "#FFFFFF" : colors.tint}
-        />
-        <ThemedText
-          style={[
-            styles.loadingText,
-            { color: isDarkMode ? "#FFFFFF" : colors.text },
-          ]}
-        >
-          Loading store...
-        </ThemedText>
-      </ThemedView>
-    );
-  }
-
   return (
     <ThemedView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -476,6 +164,8 @@ function ShopContent({ onPurchaseItem, isItemPurchased }) {
         iconColor={isDarkMode ? "#FFFFFF" : colors.tint}
       />
 
+      {/* Commented out original shop content for production */}
+      {/*
       <StoreItemModal
         visible={modalVisible}
         item={selectedItem}
@@ -518,6 +208,33 @@ function ShopContent({ onPurchaseItem, isItemPurchased }) {
         initialNumToRender={10}
         ListFooterComponentStyle={{ marginBottom: 64 }}
       />
+      */}
+
+      {/* Coming Soon Page */}
+      <View style={[styles.comingSoonContainer, { backgroundColor: colors.background }]}>
+        <FontAwesome
+          name="shopping-basket"
+          size={64}
+          color={isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.icon}
+        />
+        <ThemedText
+          style={[
+            styles.comingSoonText,
+            { color: isDarkMode ? "#FFFFFF" : colors.text },
+          ]}
+        >
+          Store Coming Soon!
+        </ThemedText>
+        <ThemedText
+          style={[
+            styles.comingSoonSubtext,
+            { color: isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.textSecondary },
+          ]}
+        >
+          We're working hard to bring you an amazing shopping experience.
+          Check back later!
+        </ThemedText>
+      </View>
     </ThemedView>
   );
 }
@@ -594,6 +311,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     letterSpacing: 0.3,
+  },
+  // Coming Soon styles
+  comingSoonContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    paddingTop: 80, // Added paddingTop to account for the Header height
+    paddingBottom: 32,
+    flexDirection: "column",
+    gap: 24, // Ensures spacing between icon and text
+  },
+  comingSoonText: {
+    fontSize: 25,
+    fontWeight: "bold",
+    marginTop: 0, // Removed marginTop since gap handles spacing
+    textAlign: "center",
+  },
+  comingSoonSubtext: {
+    fontSize: 16,
+    marginTop: 0, // Removed marginTop since gap handles spacing
+    textAlign: "center",
+    paddingHorizontal: 16,
   },
 });
 

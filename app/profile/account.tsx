@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
-import { getStoredUser } from '../services/userService'; // Import the service
+import { getStoredUser } from '../services/userService';
 
 export default function AccountDetailsScreen() {
   const router = useRouter();
@@ -51,14 +51,13 @@ export default function AccountDetailsScreen() {
 
   const loadUserData = async () => {
     try {
-      const user = await getStoredUser(); // Use the service to get user data
+      const user = await getStoredUser();
       if (user) {
         setFormData({
           name: user.name,
           email: user.email,
         });
       } else {
-        // Fallback to defaults if no user data is found
         setFormData({
           name: 'John Doe',
           email: 'john.doe@example.com',
@@ -66,7 +65,6 @@ export default function AccountDetailsScreen() {
       }
     } catch (error) {
       console.error('Error loading user data:', error);
-      // Fallback in case of error
       setFormData({
         name: 'John Doe',
         email: 'john.doe@example.com',
@@ -74,6 +72,8 @@ export default function AccountDetailsScreen() {
     }
   };
 
+  // Commented out for production as feature is incomplete
+  /*
   const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setIsEdited(true);
@@ -96,8 +96,6 @@ export default function AccountDetailsScreen() {
     }
 
     try {
-      // Note: This only updates local AsyncStorage. You might want to add an API call
-      // to update the backend if your app supports profile updates.
       const user = await getStoredUser();
       if (user) {
         const updatedUser = { ...user, name: formData.name, email: formData.email };
@@ -113,8 +111,12 @@ export default function AccountDetailsScreen() {
       Alert.alert('Error', 'Failed to save changes. Please try again.');
     }
   };
+  */
 
   const handleBack = () => {
+    // Since editing is disabled, we can just go back directly
+    router.back();
+    /*
     if (isEdited) {
       Alert.alert(
         'Unsaved Changes',
@@ -127,6 +129,7 @@ export default function AccountDetailsScreen() {
     } else {
       router.back();
     }
+    */
   };
 
   return (
@@ -140,7 +143,8 @@ export default function AccountDetailsScreen() {
             <Ionicons name="chevron-back" size={24} color={colors.text} />
             <Text style={[styles.backText, { color: colors.text }]}>Back</Text>
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Account Details</Text>
+          {/* Commented out save button for production */}
+          {/*
           <TouchableOpacity
             onPress={handleSave}
             style={[styles.saveButton, !isEdited && styles.saveButtonDisabled]}
@@ -152,6 +156,7 @@ export default function AccountDetailsScreen() {
               color={isEdited ? colors.tint : colors.icon}
             />
           </TouchableOpacity>
+          */}
         </View>
 
         <ScrollView
@@ -174,7 +179,8 @@ export default function AccountDetailsScreen() {
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   value={formData.name}
-                  onChangeText={(text) => handleInputChange('name', text)}
+                  // onChangeText={(text) => handleInputChange('name', text)} // Commented out
+                  editable={false} // Make read-only
                   placeholder="Enter your name"
                   placeholderTextColor={colors.icon}
                   returnKeyType="next"
@@ -195,7 +201,8 @@ export default function AccountDetailsScreen() {
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   value={formData.email}
-                  onChangeText={(text) => handleInputChange('email', text)}
+                  // onChangeText={(text) => handleInputChange('email', text)} // Commented out
+                  editable={false} // Make read-only
                   placeholder="Enter your email"
                   placeholderTextColor={colors.icon}
                   keyboardType="email-address"
@@ -207,6 +214,8 @@ export default function AccountDetailsScreen() {
             </View>
           </View>
 
+          {/* Commented out security section for consistency */}
+          {/*
           <View style={[styles.section, { backgroundColor: colors.background }]}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Security</Text>
 
@@ -232,6 +241,7 @@ export default function AccountDetailsScreen() {
               />
             </TouchableOpacity>
           </View>
+          */}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

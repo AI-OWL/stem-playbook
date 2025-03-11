@@ -222,7 +222,7 @@ export default function Index() {
     }
   }, []);
 
-  // Render a section header (title + subheading + card grid)
+  // Render a section header (title + card grid)
   const renderSectionHeader = useCallback(
     ({ section: { title, data } }) => {
       const headerTranslateY = scrollY.interpolate({
@@ -230,8 +230,6 @@ export default function Index() {
         outputRange: [50, 0, -50],
         extrapolate: "clamp",
       });
-
-      const collectedCount = data.filter((card: any) => card.collected).length;
 
       return (
         <Animated.View
@@ -258,18 +256,6 @@ export default function Index() {
               ]}
             >
               {title}
-            </ThemedText>
-            <ThemedText
-              style={[
-                styles.sectionCount,
-                {
-                  color: isDarkMode
-                    ? "rgba(255, 255, 255, 0.7)"
-                    : colors.textSecondary,
-                },
-              ]}
-            >
-              {collectedCount}/{data.length} Collected
             </ThemedText>
           </View>
 
@@ -448,18 +434,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     marginBottom: 16,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     borderWidth: 1,
+    alignItems: "center", // Center the header text
   },
   sectionHeader: {
     fontSize: 18,
     fontWeight: "600",
     textTransform: "uppercase",
-  },
-  sectionCount: {
-    fontSize: 14,
+    textAlign: "center", // Center the text
   },
   grid: {
     flexDirection: "row",
