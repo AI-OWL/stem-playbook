@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react"; // Added useRef for video ref
 import {
   View,
   Text,
@@ -98,6 +98,8 @@ export default function CardDetailsScreen() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [videoWatched, setVideoWatched] = useState(false); // Track if video is fully watched
+  const videoRef = useRef(null); // Reference to the Video component
 
   useEffect(() => {
     const loadCard = async () => {
@@ -117,6 +119,7 @@ export default function CardDetailsScreen() {
         const redeemed = await AsyncStorage.getItem(`redeemed_${id}`);
         if (redeemed === "true") {
           setPointsRedeemed(true);
+          setVideoWatched(true); // If already redeemed, no need to watch video
         }
       } catch (err) {
         console.error("Error fetching card:", err);
@@ -128,6 +131,14 @@ export default function CardDetailsScreen() {
 
     loadCard();
   }, [id]);
+
+  // Handle video playback status updates to check if the video is fully watched
+  const onPlaybackStatusUpdate = (status: any) => {
+    if (status.didJustFinish && !status.isLooping) {
+      // Video has finished playing
+      setVideoWatched(true);
+    }
+  };
 
   if (loading) {
     return (
@@ -178,11 +189,13 @@ export default function CardDetailsScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.videoContainer}>
             <Video
+              ref={videoRef}
               source={{ uri: cardData.videoUrl }}
               style={styles.video}
               useNativeControls
               resizeMode={ResizeMode.CONTAIN}
-              isLooping
+              isLooping={false} // Disable looping to ensure we can detect when the video ends
+              onPlaybackStatusUpdate={onPlaybackStatusUpdate} // Track playback status
             />
           </View>
 
@@ -193,19 +206,24 @@ export default function CardDetailsScreen() {
             {cardData.bodyText}
           </Text>
 
-          {/* Getting rid of point redemption for now */}
-          {/* <TouchableOpacity
+          {!videoWatched && !pointsRedeemed && (
+            <Text style={[styles.watchMessage, { color: colors.textSecondary }]}>
+              Please watch the entire video to redeem points.
+            </Text>
+          )}
+
+          <TouchableOpacity
             style={[
               styles.redeemButton,
-              pointsRedeemed && styles.redeemButtonDisabled,
+              (pointsRedeemed || !videoWatched) && styles.redeemButtonDisabled,
             ]}
             onPress={() => handleRedeemPoints(id as string, setPointsRedeemed)}
-            disabled={pointsRedeemed}
+            disabled={pointsRedeemed || !videoWatched} // Disable button until video is watched or points are redeemed
           >
             <Text style={[styles.redeemButtonText, { color: colors.text }]}>
               {pointsRedeemed ? "Card Redeemed" : "Redeem for 100 Points"}
             </Text>
-          </TouchableOpacity> */}
+          </TouchableOpacity>
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -259,6 +277,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     marginBottom: 24,
+  },
+  watchMessage: {
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 16,
+    opacity: 0.8,
   },
   redeemButton: {
     backgroundColor: "#4CAF50",
