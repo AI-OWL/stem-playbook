@@ -18,6 +18,29 @@ import { Video, ResizeMode } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
 import { fetchCard } from "../services/cardService";
 import { updateUserPoints, getStoredUser } from "../services/userService";
+import { useColorScheme } from "react-native";
+
+// Define color constants
+const Colors = {
+  light: {
+    background: "#FFFFFF",
+    text: "#121212",
+    textSecondary: "#666666",
+    border: "#E0E0E0",
+    tint: "#4CAF50",
+    icon: "#121212",
+    error: "#B00020",
+  },
+  dark: {
+    background: "#121212",
+    text: "#FFFFFF",
+    textSecondary: "#BBBBBB",
+    border: "#333333",
+    tint: "#4CAF50",
+    icon: "#FFFFFF",
+    error: "#CF6679",
+  },
+};
 
 const handleRedeemPoints = async (
   cardId: string,
@@ -62,6 +85,10 @@ const handleRedeemPoints = async (
 export default function CardDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDarkMode = colorScheme === "dark";
+  const colors = Colors[isDarkMode ? "dark" : "light"];
+
   const [pointsRedeemed, setPointsRedeemed] = useState(false);
   const [cardData, setCardData] = useState<{
     name: string;
@@ -104,9 +131,9 @@ export default function CardDetailsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.container}>
-          <ActivityIndicator size="large" color="#fff" />
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+          <ActivityIndicator size="large" color={colors.tint} />
         </View>
       </SafeAreaView>
     );
@@ -114,11 +141,15 @@ export default function CardDetailsScreen() {
 
   if (error || !cardData) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.container}>
-          <Text style={styles.errorText}>{error || "Card not found"}</Text>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+          <Text style={[styles.errorText, { color: colors.error }]}>
+            {error || "Card not found"}
+          </Text>
           <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.backButton}>Go Back</Text>
+            <Text style={[styles.backButton, { color: colors.textSecondary }]}>
+              Go Back
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -126,17 +157,22 @@ export default function CardDetailsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="light" />
-      <View style={styles.container}>
-        <View style={styles.stickyTitleContainer}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <StatusBar style={isDarkMode ? "light" : "dark"} />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.stickyTitleContainer, { 
+          backgroundColor: colors.background,
+          borderBottomColor: colors.border 
+        }]}>
           <TouchableOpacity
             style={styles.backButtonContainer}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={28} color="#fff" />
+            <Ionicons name="arrow-back" size={28} color={colors.icon} />
           </TouchableOpacity>
-          <Text style={styles.name}>{cardData.name}</Text>
+          <Text style={[styles.name, { color: colors.text }]}>
+            {cardData.name}
+          </Text>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -150,10 +186,15 @@ export default function CardDetailsScreen() {
             />
           </View>
 
-          <Text style={styles.tagline}>{cardData.tagline}</Text>
-          <Text style={styles.description}>{cardData.bodyText}</Text>
+          <Text style={[styles.tagline, { color: colors.text }]}>
+            {cardData.tagline}
+          </Text>
+          <Text style={[styles.description, { color: colors.textSecondary }]}>
+            {cardData.bodyText}
+          </Text>
 
-          <TouchableOpacity
+          {/* Getting rid of point redemption for now */}
+          {/* <TouchableOpacity
             style={[
               styles.redeemButton,
               pointsRedeemed && styles.redeemButtonDisabled,
@@ -161,10 +202,10 @@ export default function CardDetailsScreen() {
             onPress={() => handleRedeemPoints(id as string, setPointsRedeemed)}
             disabled={pointsRedeemed}
           >
-            <Text style={styles.redeemButtonText}>
+            <Text style={[styles.redeemButtonText, { color: colors.text }]}>
               {pointsRedeemed ? "Card Redeemed" : "Redeem for 100 Points"}
             </Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -174,11 +215,9 @@ export default function CardDetailsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#121212",
   },
   container: {
     flex: 1,
-    backgroundColor: "#121212",
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -188,9 +227,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: Platform.OS === "android" ? (RNStatusBar.currentHeight || 0) + 10 : 10,
     paddingBottom: 10,
-    backgroundColor: "#121212",
     borderBottomWidth: 1,
-    borderBottomColor: "#333",
     flexDirection: "row",
     alignItems: "center",
   },
@@ -200,7 +237,6 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#fff",
     marginBottom: 4,
     flex: 1,
   },
@@ -217,13 +253,11 @@ const styles = StyleSheet.create({
   tagline: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#f5f5f5",
     marginBottom: 16,
   },
   description: {
     fontSize: 16,
     lineHeight: 24,
-    color: "#e0e0e0",
     marginBottom: 24,
   },
   redeemButton: {
@@ -241,16 +275,13 @@ const styles = StyleSheet.create({
   redeemButtonText: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#fff",
   },
   errorText: {
-    color: "#fff",
     fontSize: 18,
     textAlign: "center",
     marginVertical: 20,
   },
   backButton: {
-    color: "#ddd",
     fontSize: 16,
     textAlign: "center",
     marginTop: 20,

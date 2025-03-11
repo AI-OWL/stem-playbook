@@ -144,11 +144,11 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color={colors.icon} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.icon }]} onPress={handlePasswordChange}>
+          {/* <TouchableOpacity style={[styles.menuItem, { borderBottomColor: colors.icon }]} onPress={handlePasswordChange}>
             <Ionicons name="lock-closed-outline" size={20} color={colors.icon} />
             <Text style={[styles.menuText, { color: colors.text }]}>Change Password</Text>
             <Ionicons name="chevron-forward" size={20} color={colors.icon} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.background, borderColor: colors.icon }]}>

@@ -59,37 +59,54 @@ export default function ChangePasswordScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { 
+        backgroundColor: colors.background,
+        borderBottomColor: colors.border 
+      }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.icon} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Change Password</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          Change Password
+        </Text>
       </View>
 
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <TextInput
-          style={[styles.input, { borderColor: colors.icon, color: colors.text }]}
+          style={[styles.input, { 
+            borderColor: colors.border, 
+            color: colors.text,
+            backgroundColor: colors.background 
+          }]}
           placeholder="Current Password"
-          placeholderTextColor={colors.icon}
+          placeholderTextColor={colors.textSecondary}
           secureTextEntry
           value={currentPassword}
           onChangeText={setCurrentPassword}
           autoCapitalize="none"
         />
         <TextInput
-          style={[styles.input, { borderColor: colors.icon, color: colors.text }]}
+          style={[styles.input, { 
+            borderColor: colors.border, 
+            color: colors.text,
+            backgroundColor: colors.background 
+          }]}
           placeholder="New Password"
-          placeholderTextColor={colors.icon}
+          placeholderTextColor={colors.textSecondary}
           secureTextEntry
           value={newPassword}
           onChangeText={setNewPassword}
           autoCapitalize="none"
         />
         <TextInput
-          style={[styles.input, { borderColor: colors.icon, color: colors.text }]}
+          style={[styles.input, { 
+            borderColor: colors.border, 
+            color: colors.text,
+            backgroundColor: colors.background 
+          }]}
           placeholder="Confirm New Password"
-          placeholderTextColor={colors.icon}
+          placeholderTextColor={colors.textSecondary}
           secureTextEntry
           value={confirmPassword}
           onChangeText={setConfirmPassword}
@@ -97,7 +114,10 @@ export default function ChangePasswordScreen() {
         />
 
         <TouchableOpacity
-          style={[styles.submitButton, { backgroundColor: loading ? colors.icon : colors.tint }]}
+          style={[
+            styles.submitButton,
+            { backgroundColor: loading ? colors.textSecondary : colors.tint }
+          ]}
           onPress={handleChangePassword}
           disabled={loading}
         >
@@ -111,13 +131,15 @@ export default function ChangePasswordScreen() {
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   headerTitle: {
     fontSize: 20,
