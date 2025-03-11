@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert } from "react-native";
 import { router } from "expo-router"; // Ensure Expo Router is used for navigation
 
-const API_URL = "http://localhost:5050"; // Adjust for production
+const API_URL = "http://3.143.91.62"; // Adjust for production
 
 const api = axios.create({
   baseURL: API_URL,
