@@ -120,26 +120,24 @@ const Achievements = () => {
 
   // Enhanced theme management
   useEffect(() => {
-    if (!IS_COMING_SOON) {
-      const checkAndUpdateTheme = async () => {
-        try {
-          const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
-          if (savedTheme !== null) {
-            setIsDarkMode(savedTheme === 'dark');
-          } else {
-            setIsDarkMode(systemColorScheme === 'dark');
-            await AsyncStorage.setItem(STORAGE_KEYS.THEME, systemColorScheme);
-          }
-        } catch (error) {
-          console.error('Theme check error:', error);
+    const checkAndUpdateTheme = async () => {
+      try {
+        const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
+        if (savedTheme !== null) {
+          setIsDarkMode(savedTheme === 'dark');
+        } else {
+          setIsDarkMode(systemColorScheme === 'dark');
+          await AsyncStorage.setItem(STORAGE_KEYS.THEME, systemColorScheme);
         }
-      };
+      } catch (error) {
+        console.error('Theme check error:', error);
+      }
+    };
 
-      checkAndUpdateTheme();
-      const themeInterval = setInterval(checkAndUpdateTheme, 1000);
+    checkAndUpdateTheme();
+    const themeInterval = setInterval(checkAndUpdateTheme, 1000);
 
-      return () => clearInterval(themeInterval);
-    }
+    return () => clearInterval(themeInterval);
   }, [systemColorScheme]);
 
   // Theme change handler

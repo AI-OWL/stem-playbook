@@ -145,6 +145,28 @@ const LeaderBoard = () => {
       const user = await getStoredUser();
       const currentUserId = user?.id;
 
+      // Update user rank if current user is found in the leaderboard
+      if (user) {
+        const userIndex = topUsers.findIndex(player => player.id === currentUserId);
+        if (userIndex !== -1) {
+          // User is in the leaderboard, update rank (add 1 since index is zero-based)
+          setUserRank(userIndex + 1);
+          // Also update points in case they've changed
+          setUserPoints(topUsers[userIndex].points);
+        } else {
+          // If user not found in top users, fetch specific rank
+          try {
+            const rankData = await fetchUserRank(user.id);
+            console.log('[INFO] Fetched user rank:', { userId: user.id, rankData });
+            setUserRank(rankData.rank);
+            // Make sure we have the latest points
+            setUserPoints(user.points);
+          } catch (rankError) {
+            console.error('[ERROR] Error fetching user rank:', rankError);
+          }
+        }
+      }
+
       const newPlayers = topUsers.slice(0, ITEMS_PER_PAGE * page).map((player, index) => ({
         id: player.id,
         name: player.name,
@@ -188,6 +210,7 @@ const LeaderBoard = () => {
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
+    loadUserPoints(); // Refresh user points and rank
     loadLeaderboardData(true);
   }, []);
 
