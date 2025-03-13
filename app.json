@@ -2,14 +2,21 @@
   "expo": {
     "name": "StemPlaybook",
     "slug": "StemPlaybook",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stemplaybook.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
       "package": "com.stemplaybook.app",
@@ -43,7 +50,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "52b03a58-feb7-4c17-a0d1-89963e388ff7"
+        "projectId": "55f58685-655f-4537-be00-0c2df24d4ee7"
       }
     }
   }

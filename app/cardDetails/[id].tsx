@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from "react"; // Added useRef for video ref
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
   SafeAreaView,
   Platform,
   StatusBar as RNStatusBar,
@@ -20,7 +19,7 @@ import { fetchCard } from "../services/cardService";
 import { updateUserPoints, getStoredUser } from "../services/userService";
 import { useColorScheme } from "react-native";
 
-// Define color constants
+// Define color constants (already provided in your code)
 const Colors = {
   light: {
     background: "#FFFFFF",
@@ -30,6 +29,7 @@ const Colors = {
     tint: "#4CAF50",
     icon: "#121212",
     error: "#B00020",
+    card: "#FFFFFF",
   },
   dark: {
     background: "#121212",
@@ -39,12 +39,14 @@ const Colors = {
     tint: "#4CAF50",
     icon: "#FFFFFF",
     error: "#CF6679",
+    card: "#1E1E1E",
   },
 };
 
 const handleRedeemPoints = async (
   cardId: string,
-  setPointsRedeemed: (value: boolean) => void
+  setPointsRedeemed: (value: boolean) => void,
+  colors: any
 ) => {
   Alert.alert(
     "Redeem Card",
@@ -58,27 +60,32 @@ const handleRedeemPoints = async (
         text: "Yes",
         onPress: async () => {
           try {
-            // Get current user from AsyncStorage
             const user = await getStoredUser();
             if (!user) {
               throw new Error("User not found");
             }
 
-            // Add 100 points
             await updateUserPoints(user.id, 100);
-            
-            // Mark card as redeemed
             await AsyncStorage.setItem(`redeemed_${cardId}`, "true");
             setPointsRedeemed(true);
             
             Alert.alert("Success", "Card redeemed! 100 points added to your account!");
           } catch (error) {
             console.error("Error redeeming card:", error);
-            Alert.alert("Error", "Failed to redeem card. Please try again.");
+            Alert.alert("Error", "Failed to redeem card. Please try again.", [
+              {
+                text: "OK",
+                style: "default",
+              }
+            ]);
           }
         },
       },
-    ]
+    ],
+    {
+      cancelable: true,
+      userInterfaceStyle: colors.background === "#FFFFFF" ? 'light' : 'dark'
+    }
   );
 };
 
@@ -86,7 +93,7 @@ export default function CardDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const isDarkMode = colorScheme === "dark";
+  const [isDarkMode, setIsDarkMode] = useState(colorScheme === "dark");
   const colors = Colors[isDarkMode ? "dark" : "light"];
 
   const [pointsRedeemed, setPointsRedeemed] = useState(false);
@@ -98,8 +105,27 @@ export default function CardDetailsScreen() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [videoWatched, setVideoWatched] = useState(false); // Track if video is fully watched
-  const videoRef = useRef(null); // Reference to the Video component
+  const [videoWatched, setVideoWatched] = useState(false);
+  const videoRef = useRef(null);
+
+  // Theme management
+  useEffect(() => {
+    const checkAndUpdateTheme = async () => {
+      try {
+        const savedTheme = await AsyncStorage.getItem("theme");
+        if (savedTheme !== null) {
+          setIsDarkMode(savedTheme === "dark");
+        } else {
+          setIsDarkMode(colorScheme === "dark");
+          await AsyncStorage.setItem("theme", colorScheme === "dark" ? "dark" : "light");
+        }
+      } catch (error) {
+        console.error("Theme check error:", error);
+      }
+    };
+
+    checkAndUpdateTheme();
+  }, [colorScheme]);
 
   useEffect(() => {
     const loadCard = async () => {
@@ -119,7 +145,7 @@ export default function CardDetailsScreen() {
         const redeemed = await AsyncStorage.getItem(`redeemed_${id}`);
         if (redeemed === "true") {
           setPointsRedeemed(true);
-          setVideoWatched(true); // If already redeemed, no need to watch video
+          setVideoWatched(true);
         }
       } catch (err) {
         console.error("Error fetching card:", err);
@@ -132,10 +158,8 @@ export default function CardDetailsScreen() {
     loadCard();
   }, [id]);
 
-  // Handle video playback status updates to check if the video is fully watched
   const onPlaybackStatusUpdate = (status: any) => {
     if (status.didJustFinish && !status.isLooping) {
-      // Video has finished playing
       setVideoWatched(true);
     }
   };
@@ -145,6 +169,9 @@ export default function CardDetailsScreen() {
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <View style={[styles.container, { backgroundColor: colors.background }]}>
           <ActivityIndicator size="large" color={colors.tint} />
+          <Text style={[styles.loadingText, { color: colors.text }]}>
+            Loading card...
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -158,7 +185,7 @@ export default function CardDetailsScreen() {
             {error || "Card not found"}
           </Text>
           <TouchableOpacity onPress={() => router.back()}>
-            <Text style={[styles.backButton, { color: colors.textSecondary }]}>
+            <Text style={[styles.backButton, { color: colors.tint }]}>
               Go Back
             </Text>
           </TouchableOpacity>
@@ -172,7 +199,7 @@ export default function CardDetailsScreen() {
       <StatusBar style={isDarkMode ? "light" : "dark"} />
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.stickyTitleContainer, { 
-          backgroundColor: colors.background,
+          backgroundColor: colors.card,
           borderBottomColor: colors.border 
         }]}>
           <TouchableOpacity
@@ -186,16 +213,19 @@ export default function CardDetailsScreen() {
           </Text>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.videoContainer}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          style={{ backgroundColor: colors.background }}
+        >
+          <View style={[styles.videoContainer, { backgroundColor: colors.card }]}>
             <Video
               ref={videoRef}
               source={{ uri: cardData.videoUrl }}
               style={styles.video}
               useNativeControls
               resizeMode={ResizeMode.CONTAIN}
-              isLooping={false} // Disable looping to ensure we can detect when the video ends
-              onPlaybackStatusUpdate={onPlaybackStatusUpdate} // Track playback status
+              isLooping={false}
+              onPlaybackStatusUpdate={onPlaybackStatusUpdate}
             />
           </View>
 
@@ -215,12 +245,17 @@ export default function CardDetailsScreen() {
           <TouchableOpacity
             style={[
               styles.redeemButton,
-              (pointsRedeemed || !videoWatched) && styles.redeemButtonDisabled,
+              {
+                backgroundColor: pointsRedeemed ? colors.border : colors.tint,
+                opacity: (pointsRedeemed || !videoWatched) ? 0.7 : 1,
+              },
             ]}
-            onPress={() => handleRedeemPoints(id as string, setPointsRedeemed)}
-            disabled={pointsRedeemed || !videoWatched} // Disable button until video is watched or points are redeemed
+            onPress={() => handleRedeemPoints(id as string, setPointsRedeemed, colors)}
+            disabled={pointsRedeemed || !videoWatched}
           >
-            <Text style={[styles.redeemButtonText, { color: colors.text }]}>
+            <Text style={[styles.redeemButtonText, { 
+              color: pointsRedeemed ? colors.textSecondary : colors.text 
+            }]}>
               {pointsRedeemed ? "Card Redeemed" : "Redeem for 100 Points"}
             </Text>
           </TouchableOpacity>
@@ -248,6 +283,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     flexDirection: "row",
     alignItems: "center",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   backButtonContainer: {
     marginRight: 15,
@@ -255,7 +295,6 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 4,
     flex: 1,
   },
   videoContainer: {
@@ -285,16 +324,11 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   redeemButton: {
-    backgroundColor: "#4CAF50",
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 8,
     alignItems: "center",
     marginTop: 16,
-  },
-  redeemButtonDisabled: {
-    backgroundColor: "#666",
-    opacity: 0.7,
   },
   redeemButtonText: {
     fontSize: 18,
@@ -309,5 +343,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     marginTop: 20,
+    fontWeight: "600",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
   },
 });

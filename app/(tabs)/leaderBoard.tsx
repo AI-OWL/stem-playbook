@@ -5,12 +5,12 @@ import {
   Animated,
   RefreshControl,
   ActivityIndicator,
-  Alert,
   Platform,
   useColorScheme,
   FlatList,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import Header from '@/components/Header';
@@ -73,23 +73,27 @@ const LeaderBoard = () => {
     return () => clearInterval(themeInterval);
   }, [systemColorScheme]);
 
-  // Initial data fetch and refresh interval
-  useEffect(() => {
-    const initializeApp = async () => {
-      console.log('[DEBUG] Initializing LeaderBoard...');
-      await loadInitialData();
-    };
+  // Fetch data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      const initializeApp = async () => {
+        console.log('[DEBUG] LeaderBoard screen focused, fetching data...');
+        await loadInitialData();
+      };
 
-    initializeApp();
+      initializeApp();
 
-    const refreshInterval = setInterval(() => {
-      if (!refreshing) {
-        loadLeaderboardData(true);
-      }
-    }, REFRESH_INTERVAL);
+      // Optional: Add interval refresh while screen is focused
+      const refreshInterval = setInterval(() => {
+        if (!refreshing) {
+          loadLeaderboardData(true);
+        }
+      }, REFRESH_INTERVAL);
 
-    return () => clearInterval(refreshInterval);
-  }, []);
+      // Cleanup interval when screen loses focus
+      return () => clearInterval(refreshInterval);
+    }, [refreshing])
+  );
 
   const loadInitialData = async () => {
     setLoading(true);
@@ -148,17 +152,13 @@ const LeaderBoard = () => {
       if (user) {
         const userIndex = topUsers.findIndex(player => player.id === currentUserId);
         if (userIndex !== -1) {
-          // User is in the leaderboard, update rank (add 1 since index is zero-based)
           setUserRank(userIndex + 1);
-          // Also update points in case they've changed
           setUserPoints(topUsers[userIndex].points);
         } else {
-          // If user not found in top users, fetch specific rank
           try {
             const rankData = await fetchUserRank(user.id);
             console.log('[INFO] Fetched user rank:', { userId: user.id, rankData });
             setUserRank(rankData.rank);
-            // Make sure we have the latest points
             setUserPoints(user.points);
           } catch (rankError) {
             console.error('[ERROR] Error fetching user rank:', rankError);
@@ -209,7 +209,7 @@ const LeaderBoard = () => {
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
-    loadUserPoints(); // Refresh user points and rank
+    loadUserPoints();
     loadLeaderboardData(true);
   }, []);
 
@@ -415,7 +415,10 @@ const LeaderBoard = () => {
         ListFooterComponent={renderFooter}
         contentContainerStyle={[
           styles.listContainer,
-          { minHeight: '100%' },
+          { 
+            minHeight: '100%',
+            paddingBottom: 100,
+          },
         ]}
         initialScrollIndex={0}
         extraData={players}
