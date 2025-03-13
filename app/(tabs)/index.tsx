@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import {
   StyleSheet,
   View,
@@ -10,6 +17,7 @@ import {
   ActivityIndicator,
   Dimensions,
   SafeAreaView,
+  Image,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedText } from "@/components/ThemedText";
@@ -42,11 +50,16 @@ export default function Index() {
 
   const systemColorScheme = useColorScheme();
   const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === "dark");
-  const colors = useMemo(() => Colors[isDarkMode ? "dark" : "light"], [isDarkMode]);
+  const colors = useMemo(
+    () => Colors[isDarkMode ? "dark" : "light"],
+    [isDarkMode],
+  );
 
   const [categories, setCategories] = useState<WalletCategory[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const [selectedCardImageUrl, setSelectedCardImageUrl] = useState<string | null>(null);
+  const [selectedCardImageUrl, setSelectedCardImageUrl] = useState<
+    string | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +129,10 @@ export default function Index() {
     try {
       const newTheme = !isDarkMode;
       setIsDarkMode(newTheme);
-      await AsyncStorage.setItem(STORAGE_KEYS.THEME, newTheme ? "dark" : "light");
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.THEME,
+        newTheme ? "dark" : "light",
+      );
       log.debug(`[Index] Toggled theme to: ${newTheme ? "dark" : "light"}`);
     } catch (error) {
       log.error("[Index] Theme toggle error:", error);
@@ -148,14 +164,14 @@ export default function Index() {
             friction: 7,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       );
 
       Animated.parallel(staggeredAnimations).start(() => {
         log.debug("[Index] Finished card animations.");
       });
     },
-    [cardAnimations]
+    [cardAnimations],
   );
 
   // Animate whenever categories change
@@ -222,24 +238,38 @@ export default function Index() {
     }
   }, []);
 
+  // Get background image based on section title
+  const getSectionBackground = useCallback((title: string) => {
+    const sectionKey = title.toLowerCase().replace(/\s+/g, "");
+
+    // Map section titles to background images
+    const backgroundMap: { [key: string]: any } = {
+      science: require("../../assets/images/Backgrounds/ScienceBackground.png"),
+      technology: require("../../assets/images/Backgrounds/TechBackground.png"),
+      engineering: require("../../assets/images/Backgrounds/EngineeringBackground.png"),
+      mathematics: require("../../assets/images/Backgrounds/MathBackground.png"),
+      math: require("../../assets/images/Backgrounds/MathBackground.png"), // Added this for "Math"
+      // Add more sections as needed
+    };
+
+    return backgroundMap[sectionKey] || null;
+  }, []);
+
   // Render a section header (title + card grid)
   const renderSectionHeader = useCallback(
     ({ section: { title, data } }) => {
-      const headerTranslateY = scrollY.interpolate({
-        inputRange: [-100, 0, 100],
-        outputRange: [50, 0, -50],
-        extrapolate: "clamp",
-      });
+      const backgroundImage = getSectionBackground(title);
 
       return (
-        <Animated.View
-          style={[
-            styles.sectionContainer,
-            {
-              transform: [{ translateY: headerTranslateY }],
-            },
-          ]}
-        >
+        <View style={styles.sectionContainer}>
+          {backgroundImage && (
+            <Image
+              source={backgroundImage}
+              style={styles.sectionBackground}
+              resizeMode="cover"
+            />
+          )}
+
           <View
             style={[
               styles.sectionHeaderContainer,
@@ -259,40 +289,45 @@ export default function Index() {
             </ThemedText>
           </View>
 
-          <View style={styles.grid}>
-            {data.map((card: any, index: number) => {
-              const scale = cardAnimations.get(card.id) || new Animated.Value(1);
+          <View style={styles.sectionContent}>
+            <View style={styles.grid}>
+              {data.map((card: any, index: number) => {
+                const scale =
+                  cardAnimations.get(card.id) || new Animated.Value(1);
 
-              return (
-                <Animated.View
-                  key={card.id}
-                  style={[
-                    styles.cardWrapper,
-                    {
-                      transform: [{ scale }],
-                      opacity: scale,
-                    },
-                  ]}
-                >
-                  <StemCard
-                    imageUrl={card.imageUrl}
-                    collected={card.collected}
-                    onPress={() => handleCardPress(card)}
-                  />
-                </Animated.View>
-              );
-            })}
+                return (
+                  <Animated.View
+                    key={card.id}
+                    style={[
+                      styles.cardWrapper,
+                      {
+                        transform: [{ scale }],
+                        opacity: scale,
+                      },
+                    ]}
+                  >
+                    <StemCard
+                      imageUrl={card.imageUrl}
+                      collected={card.collected}
+                      onPress={() => handleCardPress(card)}
+                    />
+                  </Animated.View>
+                );
+              })}
+            </View>
           </View>
-        </Animated.View>
+        </View>
       );
     },
-    [colors, handleCardPress, scrollY, isDarkMode]
+    [colors, handleCardPress, isDarkMode, getSectionBackground],
   );
 
   // Render an empty fallback
   const renderEmpty = useCallback(
     () => (
-      <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
+      <View
+        style={[styles.emptyContainer, { backgroundColor: colors.background }]}
+      >
         <FontAwesome
           name="folder-open"
           size={48}
@@ -312,14 +347,22 @@ export default function Index() {
         </ThemedText>
       </View>
     ),
-    [colors, error, isDarkMode]
+    [colors, error, isDarkMode],
   );
 
   // Render a loading fallback
   const renderLoading = useCallback(
     () => (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={isDarkMode ? "#FFFFFF" : colors.tint} />
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: colors.background },
+        ]}
+      >
+        <ActivityIndicator
+          size="large"
+          color={isDarkMode ? "#FFFFFF" : colors.tint}
+        />
         <ThemedText
           style={[
             styles.loadingText,
@@ -330,7 +373,7 @@ export default function Index() {
         </ThemedText>
       </View>
     ),
-    [colors, isDarkMode]
+    [colors, isDarkMode],
   );
 
   // If still loading initial fetch (and not just refreshing), show loading
@@ -339,7 +382,9 @@ export default function Index() {
   }
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
+    <ThemedView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <Header
         title="Wallet"
         style={{ backgroundColor: colors.background }}
@@ -357,9 +402,12 @@ export default function Index() {
           categories.length === 0 && styles.emptyList,
           { backgroundColor: colors.background },
         ]}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
-          useNativeDriver: true,
-        })}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          {
+            useNativeDriver: true,
+          },
+        )}
         scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
@@ -371,10 +419,14 @@ export default function Index() {
           />
         }
         ListHeaderComponent={
-          <View style={[styles.listHeader, { backgroundColor: colors.background }]} />
+          <View
+            style={[styles.listHeader, { backgroundColor: colors.background }]}
+          />
         }
         ListFooterComponent={
-          <View style={[styles.listFooter, { backgroundColor: colors.background }]} />
+          <View
+            style={[styles.listFooter, { backgroundColor: colors.background }]}
+          />
         }
         renderItem={() => null} // We render cards in sectionHeader
         removeClippedSubviews={Platform.OS !== "web"}
@@ -398,7 +450,9 @@ export default function Index() {
         collected={
           selectedCardId
             ? categories.some((category) =>
-                category.data.some((card) => card.id === selectedCardId && card.collected)
+                category.data.some(
+                  (card) => card.id === selectedCardId && card.collected,
+                ),
               )
             : false
         }
@@ -412,7 +466,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingHorizontal: 16,
     paddingBottom: 20,
   },
   listHeader: {
@@ -427,21 +480,41 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   sectionContainer: {
-    marginBottom: 24,
+    marginBottom: 0, // Remove margin to eliminate gaps
+    paddingBottom: 10, // Add padding instead to maintain spacing
+    width: "100%",
+    position: "relative",
+    overflow: "hidden", // Ensure background doesn't leak
   },
   sectionHeaderContainer: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 12,
     marginBottom: 16,
     borderWidth: 1,
-    alignItems: "center", // Center the header text
+    alignItems: "center",
+    width: "100%",
+    zIndex: 1,
   },
   sectionHeader: {
     fontSize: 18,
     fontWeight: "600",
     textTransform: "uppercase",
-    textAlign: "center", // Center the text
+    textAlign: "center",
+  },
+  sectionBackground: {
+    position: "absolute",
+    width: Dimensions.get("window").width,
+    left: 0,
+    top: 0,
+    bottom: 0,
+    opacity: 0.25,
+    height: "130%", // Increase height to ensure overlap with next section
+  },
+  sectionContent: {
+    width: "100%",
+    paddingHorizontal: 16,
+    position: "relative",
+    zIndex: 1,
   },
   grid: {
     flexDirection: "row",

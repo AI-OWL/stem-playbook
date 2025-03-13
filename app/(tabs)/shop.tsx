@@ -15,6 +15,7 @@ import {
   Platform,
   useColorScheme,
   FlatList,
+  Image,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedText } from "@/components/ThemedText";
@@ -210,12 +211,12 @@ function ShopContent({ onPurchaseItem, isItemPurchased }) {
       />
       */}
 
-      {/* Coming Soon Page */}
+      {/* Hidden Page with Logo */}
       <View style={[styles.comingSoonContainer, { backgroundColor: colors.background }]}>
-        <FontAwesome
-          name="shopping-basket"
-          size={64}
-          color={isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.icon}
+        <Image
+          source={require('../../assets/images/icon.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
         />
         <ThemedText
           style={[
@@ -223,16 +224,7 @@ function ShopContent({ onPurchaseItem, isItemPurchased }) {
             { color: isDarkMode ? "#FFFFFF" : colors.text },
           ]}
         >
-          Store Coming Soon!
-        </ThemedText>
-        <ThemedText
-          style={[
-            styles.comingSoonSubtext,
-            { color: isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.textSecondary },
-          ]}
-        >
-          We're working hard to bring you an amazing shopping experience.
-          Check back later!
+          Coming Soon!
         </ThemedText>
       </View>
     </ThemedView>
@@ -334,6 +326,11 @@ const styles = StyleSheet.create({
     marginTop: 0, // Removed marginTop since gap handles spacing
     textAlign: "center",
     paddingHorizontal: 16,
+  },
+  logoImage: {
+    width: 150,
+    height: 150,
+    marginBottom: 20,
   },
 });
 

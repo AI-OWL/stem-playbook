@@ -13,7 +13,6 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import LeaderboardPosition from '@/components/LeaderboardPosition';
 import Header from '@/components/Header';
 import { FontAwesome } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
@@ -235,17 +234,21 @@ const LeaderBoard = () => {
       extrapolate: 'clamp',
     });
 
+    // No fading in dark mode to keep text visible
     const opacity = scrollY.interpolate({
       inputRange,
-      outputRange: [1, 1, 1, 0.5],
+      outputRange: isDarkMode ? [1, 1, 1, 1] : [1, 1, 1, 0.7],
       extrapolate: 'clamp',
     });
+
+    // LeaderboardPosition component handles its own animation for top positions
+    const animatedScale = Animated.multiply(scale, item.animValue);
 
     return (
       <Animated.View
         style={{
           opacity: Animated.multiply(opacity, item.animValue),
-          transform: [{ scale: Animated.multiply(scale, item.animValue) }],
+          transform: [{ scale: animatedScale }],
         }}
       >
         <LeaderboardPosition
@@ -255,13 +258,13 @@ const LeaderBoard = () => {
           avatar={item.avatar}
           isCurrentUser={item.isCurrentUser}
           style={{
-            backgroundColor: colors.card,
+            backgroundColor: isDarkMode ? colors.card : undefined,
             borderColor: colors.border,
           }}
         />
       </Animated.View>
     );
-  }, [colors, scrollY]);
+  }, [colors, scrollY, isDarkMode]);
 
   const renderHeader = useCallback(() => (
     <View style={{ backgroundColor: colors.primary }}>
@@ -308,8 +311,8 @@ const LeaderBoard = () => {
             </View>
           </View>
 
-          <View style={[styles.statDivider, { 
-            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : colors.border 
+          <View style={[styles.statDivider, {
+            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : colors.border
           }]} />
 
           <View style={styles.statItemContainer}>
@@ -342,14 +345,14 @@ const LeaderBoard = () => {
 
   const renderEmpty = useCallback(() => (
     <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
-      <FontAwesome 
-        name="trophy" 
-        size={48} 
-        color={isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.icon} 
+      <FontAwesome
+        name="trophy"
+        size={48}
+        color={isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.icon}
       />
-      <ThemedText 
+      <ThemedText
         style={[
-          styles.emptyText, 
+          styles.emptyText,
           { color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : colors.textSecondary }
         ]}
       >
@@ -363,7 +366,7 @@ const LeaderBoard = () => {
     return (
       <View style={styles.footer}>
         <ActivityIndicator color={isDarkMode ? '#FFFFFF' : colors.tint} />
-        <ThemedText 
+        <ThemedText
           style={[
             styles.footerText,
             { color: isDarkMode ? '#FFFFFF' : colors.text }
@@ -381,7 +384,7 @@ const LeaderBoard = () => {
     return (
       <ThemedView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={isDarkMode ? '#FFFFFF' : colors.tint} />
-        <ThemedText 
+        <ThemedText
           style={[
             styles.loadingText,
             { color: isDarkMode ? '#FFFFFF' : colors.text }
@@ -429,7 +432,7 @@ const LeaderBoard = () => {
         }
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
+          { useNativeDriver: true, throttle: 16 }
         )}
         scrollEventThrottle={16}
         removeClippedSubviews={false}
@@ -444,6 +447,8 @@ const LeaderBoard = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: 'transparent',
+    fontFamily: 'Poppins-Regular',
   },
   loadingContainer: {
     flex: 1,
@@ -543,4 +548,31 @@ const styles = StyleSheet.create({
   },
 });
 
+import LeaderboardPosition from '@/components/LeaderboardPosition';
+
+// This function is now defined inside the LeaderboardPosition component
+// We can remove it from here as it's no longer needed
+
+
 export default LeaderBoard;
+
+const leaderboardItemStyles = StyleSheet.create({
+  leaderboardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    marginBottom: 8,
+    borderRadius: 8,
+  },
+  rankContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  rankText: {
+    fontSize: 18,
+  },
+});

@@ -3,10 +3,10 @@ const tintColorDark = '#fff';
 
 export const Colors = {  
   light: {  
-    text: '#1f2937',           // Dark gray for text  
+    text: '#2f3b47',           // Dark gray for text
     textSecondary: '#6b7280',  // Secondary text color  
     background: '#ffffff',     // White background  
-    tint: '#1e40af',          // Primary blue color  
+    tint: '#3658fc',          // Primary blue color
     cardBackground: '#ffffff', // Card background color  
     border: '#e5e7eb',        // Border color  
     card: '#ffffff',          // Card color  
@@ -17,7 +17,7 @@ export const Colors = {
   dark: {  
     text: '#f3f4f6',          // Light gray for text  
     textSecondary: '#9ca3af', // Secondary text color  
-    background: '#1f2937',    // Dark background  
+    background: '#152039',    // Dark background
     tint: '#3b82f6',         // Lighter blue for dark mode  
     cardBackground: '#374151', // Dark mode card background  
     border: '#4b5563',        // Dark mode border color  

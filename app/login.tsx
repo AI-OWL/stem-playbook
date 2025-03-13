@@ -1,5 +1,6 @@
 // pages/AuthFlow.tsx
 import React, { useState, useEffect } from "react";
+import { Fonts } from '@/constants/Fonts';
 import {
   View,
   Text,
@@ -318,8 +319,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: {
+    fontFamily: "Poppins-Bold",
     fontSize: 32,
-    fontWeight: "bold",
     color: "#1e40af",
     marginBottom: 24,
   },
@@ -340,9 +341,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#1e40af",
   },
   tabText: {
+    fontFamily: "Poppins-Medium",
     fontSize: 16,
     color: "#4b5563",
-    fontWeight: "500",
   },
   activeTabText: {
     color: "#ffffff",
@@ -352,6 +353,7 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   input: {
+    fontFamily: "Poppins-Regular",
     backgroundColor: "#ffffff",
     padding: 16,
     borderRadius: 8,
@@ -369,17 +371,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#6b7280", // Gray
   },
   buttonText: {
+    fontFamily: "Poppins-Bold",
     color: "#ffffff",
     fontSize: 16,
-    fontWeight: "bold",
   },
   errorText: {
+    fontFamily: "Poppins-Medium",
     color: "red",
     marginBottom: 10,
     textAlign: "center",
     maxWidth: 400,
   },
   label: {
+    fontFamily: "Poppins-Regular",
     fontSize: 14,
     color: "#374151",
     marginBottom: 4,
