@@ -9,6 +9,7 @@ import {
   Platform,
   StatusBar as RNStatusBar,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -19,7 +20,7 @@ import { fetchCard } from "../services/cardService";
 import { updateUserPoints, getStoredUser } from "../services/userService";
 import { useColorScheme } from "react-native";
 
-// Define color constants (already provided in your code)
+// Define color constants
 const Colors = {
   light: {
     background: "#FFFFFF",
@@ -41,52 +42,6 @@ const Colors = {
     error: "#CF6679",
     card: "#1E1E1E",
   },
-};
-
-const handleRedeemPoints = async (
-  cardId: string,
-  setPointsRedeemed: (value: boolean) => void,
-  colors: any
-) => {
-  Alert.alert(
-    "Redeem Card",
-    "Are you sure you want to redeem this card for 100 points?",
-    [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
-      {
-        text: "Yes",
-        onPress: async () => {
-          try {
-            const user = await getStoredUser();
-            if (!user) {
-              throw new Error("User not found");
-            }
-
-            await updateUserPoints(user.id, 100);
-            await AsyncStorage.setItem(`redeemed_${cardId}`, "true");
-            setPointsRedeemed(true);
-            
-            Alert.alert("Success", "Card redeemed! 100 points added to your account!");
-          } catch (error) {
-            console.error("Error redeeming card:", error);
-            Alert.alert("Error", "Failed to redeem card. Please try again.", [
-              {
-                text: "OK",
-                style: "default",
-              }
-            ]);
-          }
-        },
-      },
-    ],
-    {
-      cancelable: true,
-      userInterfaceStyle: colors.background === "#FFFFFF" ? 'light' : 'dark'
-    }
-  );
 };
 
 export default function CardDetailsScreen() {
@@ -157,6 +112,48 @@ export default function CardDetailsScreen() {
 
     loadCard();
   }, [id]);
+
+  const handleRedeemPoints = async () => {
+    Alert.alert(
+      "Redeem Card",
+      "Are you sure you want to redeem this card for 100 points?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Yes",
+          onPress: async () => {
+            try {
+              const user = await getStoredUser();
+              if (!user) {
+                throw new Error("User not found");
+              }
+
+              await updateUserPoints(user.id, 100);
+              await AsyncStorage.setItem(`redeemed_${id}`, "true");
+              setPointsRedeemed(true);
+              
+              Alert.alert("Success", "Card redeemed! 100 points added to your account!");
+            } catch (error) {
+              console.error("Error redeeming card:", error);
+              Alert.alert("Error", "Failed to redeem card. Please try again.", [
+                {
+                  text: "OK",
+                  style: "default",
+                }
+              ]);
+            }
+          },
+        },
+      ],
+      {
+        cancelable: true,
+        userInterfaceStyle: colors.background === "#FFFFFF" ? 'light' : 'dark'
+      }
+    );
+  };
 
   const onPlaybackStatusUpdate = (status: any) => {
     if (status.didJustFinish && !status.isLooping) {
@@ -250,7 +247,7 @@ export default function CardDetailsScreen() {
                 opacity: (pointsRedeemed || !videoWatched) ? 0.7 : 1,
               },
             ]}
-            onPress={() => handleRedeemPoints(id as string, setPointsRedeemed, colors)}
+            onPress={handleRedeemPoints}
             disabled={pointsRedeemed || !videoWatched}
           >
             <Text style={[styles.redeemButtonText, { 

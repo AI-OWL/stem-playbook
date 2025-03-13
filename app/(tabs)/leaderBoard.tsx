@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   points: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 8,
   },
