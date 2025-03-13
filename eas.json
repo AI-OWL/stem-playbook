@@ -16,6 +16,12 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "ethan@aiowl.org",
+        "ascAppId": "6743141297",
+        "appleTeamId": "RX3J3P336Y"
+      }
+    }
   }
 }
