@@ -16,10 +16,23 @@ import { useRouter } from "expo-router";
 import { signup, login, confirmSignup, resendVerification } from "./services/authService";
 import { logger } from "react-native-logs";
 
-// 1) Create a logger instance with default settings
+// Create a logger instance with default settings
 const log = logger.createLogger();
 
+// Custom Checkbox Component
+const CustomCheckbox = ({ value, onValueChange }) => {
+  return (
+    <TouchableOpacity
+      style={[styles.checkbox, value && styles.checkboxChecked]}
+      onPress={() => onValueChange(!value)}
+    >
+      {value && <View style={styles.checkmark} />}
+    </TouchableOpacity>
+  );
+};
+
 export default function AuthFlow() {
+  // Now log is accessible here since it's defined in the outer scope
   log.debug("[AuthFlow] Component mounted");
 
   const router = useRouter();
@@ -32,6 +45,7 @@ export default function AuthFlow() {
 
   // Sign-up form data
   const [signupData, setSignupData] = useState({ name: "", email: "", password: "" });
+  const [isAgeVerified, setIsAgeVerified] = useState(false); // Age verification state
 
   // Verification form data
   const [verificationData, setVerificationData] = useState({ email: "", code: "" });
@@ -77,11 +91,17 @@ export default function AuthFlow() {
     setLoading(true);
     setError(null);
 
+    if (!isAgeVerified) {
+      const msg = "You must confirm you are at least 13 years old to sign up";
+      log.error("[AuthFlow] Signup error:", msg);
+      setError(msg);
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await signup(signupData.name, signupData.email, signupData.password);
       log.debug("[AuthFlow] Signup successful. Prompting user to verify.");
-      // After successful sign-up, switch to "verify" tab.
-      // Pre-fill the verificationData.email so user doesn't have to retype
       setVerificationData({ email: signupData.email, code: "" });
       handleTabChange("verify");
     } catch (err: any) {
@@ -102,10 +122,8 @@ export default function AuthFlow() {
     setError(null);
 
     try {
-      // call confirm signup
       await confirmSignup(verificationData.email, verificationData.code);
       log.debug("[AuthFlow] Verification success. Switching to login tab.");
-      // On success, switch to login tab
       handleTabChange("login");
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Verification failed";
@@ -134,7 +152,6 @@ export default function AuthFlow() {
     try {
       await resendVerification(verificationData.email);
       log.debug("[AuthFlow] Verification code resent successfully.");
-      // You can show a success message if you like
       setError("A new verification code has been sent to your email.");
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Resend failed";
@@ -243,7 +260,22 @@ export default function AuthFlow() {
               secureTextEntry
             />
 
-            <TouchableOpacity style={styles.button} onPress={handleSignup} disabled={loading}>
+            {/* Age Verification Checkbox */}
+            <View style={styles.checkboxContainer}>
+              <CustomCheckbox
+                value={isAgeVerified}
+                onValueChange={setIsAgeVerified}
+              />
+              <Text style={styles.checkboxLabel}>
+                I confirm that I am at least 13 years old
+              </Text>
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.button, !isAgeVerified && styles.disabledButton]} 
+              onPress={handleSignup} 
+              disabled={loading || !isAgeVerified}
+            >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
@@ -330,11 +362,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: "hidden",
     backgroundColor: "#e5e7eb",
+    width: "80%", // Adjusted width to prevent cutoff
+    alignSelf: "center",
   },
   tab: {
     flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16, // Increased horizontal padding
     alignItems: "center",
   },
   activeTab: {
@@ -344,6 +378,7 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins-Medium",
     fontSize: 16,
     color: "#4b5563",
+    textAlign: "center", // Ensure text is centered
   },
   activeTabText: {
     color: "#ffffff",
@@ -368,7 +403,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   secondaryButton: {
-    backgroundColor: "#6b7280", // Gray
+    backgroundColor: "#6b7280",
+  },
+  disabledButton: {
+    backgroundColor: "#9ca3af",
+    opacity: 0.7,
   },
   buttonText: {
     fontFamily: "Poppins-Bold",
@@ -388,5 +427,36 @@ const styles = StyleSheet.create({
     color: "#374151",
     marginBottom: 4,
     marginLeft: 4,
+  },
+  checkboxContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: "#4b5563",
+    borderRadius: 4,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
+  },
+  checkboxChecked: {
+    borderColor: "#1e40af",
+    backgroundColor: "#1e40af",
+  },
+  checkmark: {
+    width: 12,
+    height: 12,
+    backgroundColor: "#ffffff", // Simple checkmark representation
+  },
+  checkboxLabel: {
+    fontFamily: "Poppins-Regular",
+    fontSize: 14,
+    color: "#374151",
+    flexShrink: 1,
   },
 });
