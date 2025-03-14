@@ -29,7 +29,10 @@ api.interceptors.response.use(
       headers: error.response?.headers,
     });
 
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    // Skip redirect for /auth/login to allow error message display
+    const isLoginRequest = error.config?.url?.includes("/auth/login");
+
+    if ((error.response?.status === 401 || error.response?.status === 403) && !isLoginRequest) {
       await AsyncStorage.removeItem("token");
       await AsyncStorage.removeItem("user");
       await AsyncStorage.removeItem("cards");

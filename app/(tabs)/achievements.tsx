@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
     gap: 24, // Ensures spacing between icon and text
   },
   comingSoonText: {
-    fontSize: 25,
+    fontSize: 23,
     fontWeight: 'bold',
     marginTop: 0, // Removed marginTop since gap handles spacing
     textAlign: 'center',

@@ -69,6 +69,23 @@ export const changeUserPassword = async (
   }
 };
 
+// Delete a user
+export const deleteUser = async (userId: string): Promise<void> => {
+  try {
+    // Call the DELETE endpoint to remove the user from the backend
+    await api.delete(`/users/${userId}`);
+
+    // Clean up local storage after successful deletion
+    await AsyncStorage.removeItem("user");
+    await AsyncStorage.removeItem("token");
+    // Optionally clear other cached data if needed
+    await AsyncStorage.removeItem("cards");
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    throw error;
+  }
+};
+
 // Logout user
 export const logoutUser = async (): Promise<void> => {
   try {

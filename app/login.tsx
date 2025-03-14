@@ -1,4 +1,3 @@
-// pages/AuthFlow.tsx
 import React, { useState, useEffect } from "react";
 import { Fonts } from '@/constants/Fonts';
 import {
@@ -60,13 +59,14 @@ export default function AuthFlow() {
   const handleTabChange = (tab: "login" | "signup" | "verify") => {
     log.debug(`[AuthFlow] Changing tab to: ${tab}`);
     setActiveTab(tab);
+    setError(null); // Clear error when switching tabs
   };
 
   /**
    * Handle the login flow
    */
   const handleLogin = async () => {
-    log.debug("[AuthFlow] Attempting login...");
+    log.debug("[AuthFlow] Attempting login...", { email: loginData.email, password: "****" });
     setLoading(true);
     setError(null);
 
@@ -87,7 +87,7 @@ export default function AuthFlow() {
    * Handle the sign-up flow
    */
   const handleSignup = async () => {
-    log.debug("[AuthFlow] Attempting signup...");
+    log.debug("[AuthFlow] Attempting signup...", { email: signupData.email, name: signupData.name });
     setLoading(true);
     setError(null);
 
@@ -117,7 +117,7 @@ export default function AuthFlow() {
    * Handle the email verification flow
    */
   const handleVerification = async () => {
-    log.debug("[AuthFlow] Attempting verification...");
+    log.debug("[AuthFlow] Attempting verification...", { email: verificationData.email });
     setLoading(true);
     setError(null);
 
@@ -145,7 +145,7 @@ export default function AuthFlow() {
       return;
     }
 
-    log.debug("[AuthFlow] Resending verification code...");
+    log.debug("[AuthFlow] Resending verification code...", { email: verificationData.email });
     setLoading(true);
     setError(null);
 
@@ -160,6 +160,13 @@ export default function AuthFlow() {
     } finally {
       setLoading(false);
     }
+  };
+
+  /**
+   * Clear error message
+   */
+  const clearError = () => {
+    setError(null);
   };
 
   return (
@@ -203,8 +210,15 @@ export default function AuthFlow() {
           </TouchableOpacity>
         </View>
 
-        {/* Show error if any */}
-        {error && <Text style={styles.errorText}>{error}</Text>}
+        {/* Show error if any with dismiss option */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.errorDismiss} onPress={clearError}>
+              <Text style={styles.errorDismissText}>Dismiss</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* 1) LOGIN FORM */}
         {activeTab === "login" && (
@@ -213,7 +227,10 @@ export default function AuthFlow() {
               style={styles.input}
               placeholder="Email"
               value={loginData.email}
-              onChangeText={(text) => setLoginData({ ...loginData, email: text })}
+              onChangeText={(text) => {
+                setLoginData({ ...loginData, email: text });
+                clearError(); // Clear error on input change
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -221,7 +238,10 @@ export default function AuthFlow() {
               style={styles.input}
               placeholder="Password"
               value={loginData.password}
-              onChangeText={(text) => setLoginData({ ...loginData, password: text })}
+              onChangeText={(text) => {
+                setLoginData({ ...loginData, password: text });
+                clearError(); // Clear error on input change
+              }}
               secureTextEntry
             />
 
@@ -242,13 +262,19 @@ export default function AuthFlow() {
               style={styles.input}
               placeholder="Name"
               value={signupData.name}
-              onChangeText={(text) => setSignupData({ ...signupData, name: text })}
+              onChangeText={(text) => {
+                setSignupData({ ...signupData, name: text });
+                clearError(); // Clear error on input change
+              }}
             />
             <TextInput
               style={styles.input}
               placeholder="Email"
               value={signupData.email}
-              onChangeText={(text) => setSignupData({ ...signupData, email: text })}
+              onChangeText={(text) => {
+                setSignupData({ ...signupData, email: text });
+                clearError(); // Clear error on input change
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -256,7 +282,10 @@ export default function AuthFlow() {
               style={styles.input}
               placeholder="Password"
               value={signupData.password}
-              onChangeText={(text) => setSignupData({ ...signupData, password: text })}
+              onChangeText={(text) => {
+                setSignupData({ ...signupData, password: text });
+                clearError(); // Clear error on input change
+              }}
               secureTextEntry
             />
 
@@ -293,7 +322,10 @@ export default function AuthFlow() {
               style={styles.input}
               placeholder="Email"
               value={verificationData.email}
-              onChangeText={(text) => setVerificationData({ ...verificationData, email: text })}
+              onChangeText={(text) => {
+                setVerificationData({ ...verificationData, email: text });
+                clearError(); // Clear error on input change
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -303,7 +335,10 @@ export default function AuthFlow() {
               style={styles.input}
               placeholder="6-digit code"
               value={verificationData.code}
-              onChangeText={(text) => setVerificationData({ ...verificationData, code: text })}
+              onChangeText={(text) => {
+                setVerificationData({ ...verificationData, code: text });
+                clearError(); // Clear error on input change
+              }}
               keyboardType="number-pad"
             />
 
@@ -414,12 +449,29 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
   },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fee2e2',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+    width: '80%',
+    maxWidth: 400,
+  },
   errorText: {
     fontFamily: "Poppins-Medium",
     color: "red",
-    marginBottom: 10,
-    textAlign: "center",
-    maxWidth: 400,
+    flex: 1,
+  },
+  errorDismiss: {
+    padding: 5,
+  },
+  errorDismissText: {
+    fontFamily: "Poppins-Medium",
+    color: "#dc2626",
+    fontSize: 14,
   },
   label: {
     fontFamily: "Poppins-Regular",

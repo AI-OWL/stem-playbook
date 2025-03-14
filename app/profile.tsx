@@ -10,6 +10,7 @@ import {
   useColorScheme,
   AppState,
   SafeAreaView,
+  Alert,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -17,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { logout } from './services/authService';
-import { getStoredUser } from './services/userService';
+import { getStoredUser, deleteUser } from './services/userService';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -99,6 +100,39 @@ export default function ProfileScreen() {
     router.push('/profile/notifications');
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Confirm Delete',
+      'Are you sure you want to delete your account? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (userData && userData.id) {
+                await deleteUser(userData.id); // Delete the user
+                await handleLogout(); // Log out after deletion
+                router.replace('/login'); // Navigate to login screen
+              } else {
+                console.error('User ID not found');
+                Alert.alert('Error', 'Unable to delete account. Please try again.');
+              }
+            } catch (error) {
+              console.error('Error deleting account:', error);
+              Alert.alert('Error', 'Failed to delete account. Please try again.');
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   if (!userData) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -124,12 +158,6 @@ export default function ProfileScreen() {
               source={require('@/assets/images/default-avatar.png')}
               style={styles.profileImage}
             />
-            <TouchableOpacity
-              style={[styles.cameraButton, { backgroundColor: colors.tint }]}
-              onPress={handleEditProfile}
-            >
-              <Ionicons name="camera" size={20} color={isDarkMode ? colors.text : '#ffffff'} />
-            </TouchableOpacity>
           </View>
           <Text style={[styles.name, { color: colors.text }]}>{userData.name}</Text>
           <Text style={[styles.email, { color: colors.icon }]}>{userData.email}</Text>
@@ -199,6 +227,14 @@ export default function ProfileScreen() {
           <Ionicons name="log-out-outline" size={20} color="#ef4444" />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.deleteButton, { backgroundColor: colors.background, borderColor: colors.icon }]}
+          onPress={handleDeleteAccount}
+        >
+          <Ionicons name="trash-outline" size={20} color="#ef4444" />
+          <Text style={styles.deleteText}>Delete Account</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -226,15 +262,6 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     backgroundColor: '#e5e7eb',
-  },
-  cameraButton: {
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
-    padding: 8,
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: '#ffffff',
   },
   name: {
     fontSize: 24,
@@ -278,6 +305,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   logoutText: {
+    fontSize: 16,
+    color: '#ef4444',
+    marginLeft: 12,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 32,
+    padding: 16,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+  },
+  deleteText: {
     fontSize: 16,
     color: '#ef4444',
     marginLeft: 12,
