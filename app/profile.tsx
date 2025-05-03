@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { logout } from './services/authService';
 import { getStoredUser, deleteUser } from './services/userService';
+import { User } from './types';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -26,7 +27,7 @@ export default function ProfileScreen() {
   const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === 'dark');
   const colors = Colors[isDarkMode ? 'dark' : 'light'];
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [userData, setUserData] = useState(null); // Initialize as null
+  const [userData, setUserData] = useState<User | null>(null);
 
   useEffect(() => {
     const loadUserData = async () => {

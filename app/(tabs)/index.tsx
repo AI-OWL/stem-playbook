@@ -1,4 +1,3 @@
-
 import React, {
   useState,
   useEffect,
@@ -18,6 +17,9 @@ import {
   Dimensions,
   SafeAreaView,
   Image,
+  SectionListRenderItemInfo,
+  SectionListProps,
+  ImageBackground,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedText } from "@/components/ThemedText";
@@ -29,7 +31,7 @@ import { Colors } from "@/constants/Colors";
 import { FontAwesome } from "@expo/vector-icons";
 import { fetchAndStoreAllCards } from "../services/cardService";
 import { getStoredUser } from "../services/userService";
-import { getWalletData, WalletCategory } from "../services/walletService";
+import { getWalletData, WalletCategory, WalletCard } from "../services/walletService";
 import { Card } from "../types";
 import { logger } from "react-native-logs";
 import { useRouter } from "expo-router";
@@ -42,7 +44,12 @@ const STORAGE_KEYS = {
 // Create a logger instance
 const log = logger.createLogger();
 
-const AnimatedSectionList = Animated.createAnimatedComponent(SectionList);
+const AnimatedSectionList = Animated.createAnimatedComponent(SectionList) as React.ComponentType<SectionListProps<WalletCard, SectionData>>;
+
+interface SectionData {
+  title: string;
+  data: WalletCard[];
+}
 
 export default function Index() {
   // For navigation
@@ -73,9 +80,9 @@ export default function Index() {
       try {
         const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
         if (savedTheme !== null) {
-          setIsDarkMode(savedTheme === "dark");
-        } else {
-          setIsDarkMode(systemColorScheme === "dark");
+          setIsDarkMode(savedTheme === 'dark');
+        } else if (systemColorScheme) {
+          setIsDarkMode(systemColorScheme === 'dark');
           await AsyncStorage.setItem(STORAGE_KEYS.THEME, systemColorScheme);
         }
       } catch (error) {
@@ -102,7 +109,7 @@ export default function Index() {
         }
 
         // Get data from API
-        const allCards: any = await fetchAndStoreAllCards();
+        const allCards = await fetchAndStoreAllCards();
         const user = await getStoredUser();
 
         if (!user) {
@@ -194,14 +201,13 @@ export default function Index() {
           return;
         }
 
-        const allCards: any = await fetchAndStoreAllCards();
+        const allCards = await fetchAndStoreAllCards();
 
         const user = await getStoredUser();
         if (!user) {
           router.replace("/login");
           return;
         }
-        log.debug(`[Index] Refresh: got user with id: ${user.id}`);
 
         const walletData = getWalletData(allCards, user.cardIds);
         setCategories(walletData);
@@ -213,30 +219,6 @@ export default function Index() {
       }
     })();
   }, [router]);
-
-  // On card press
-  const handleCardPress = useCallback((card: any) => {
-    setSelectedCardId(card.id);
-    setSelectedCardImageUrl(card.imageUrl);
-
-    const animation = cardAnimations.get(card.id);
-    if (animation) {
-      Animated.sequence([
-        Animated.spring(animation, {
-          toValue: 0.95,
-          tension: 100,
-          friction: 5,
-          useNativeDriver: true,
-        }),
-        Animated.spring(animation, {
-          toValue: 1,
-          tension: 100,
-          friction: 5,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, []);
 
   // Get background image based on section title
   const getSectionBackground = useCallback((title: string) => {
@@ -256,50 +238,28 @@ export default function Index() {
   }, []);
 
   // Render a section header (title + card grid)
-  const renderSectionHeader = useCallback(
-    ({ section: { title, data } }) => {
-      const backgroundImage = getSectionBackground(title);
+  const renderSectionHeader = useCallback(({ section }: { section: SectionData }) => {
+    const backgroundImage = getSectionBackground(section.title);
 
+    if (backgroundImage) {
       return (
-        <View style={styles.sectionContainer}>
-          {backgroundImage && (
-            <Image
-              source={backgroundImage}
-              style={styles.sectionBackground}
-              resizeMode="cover"
-            />
-          )}
-
-          <View
-            style={[
-              styles.sectionHeaderContainer,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <ThemedText
-              style={[
-                styles.sectionHeader,
-                { color: isDarkMode ? "#FFFFFF" : colors.text },
-              ]}
-            >
-              {title}
-            </ThemedText>
+        <ImageBackground
+          source={backgroundImage}
+          style={styles.sectionHeader}
+          imageStyle={{ resizeMode: "cover" }}
+        >
+          <View style={styles.sectionTitleContainer}>
+            <ThemedText style={styles.sectionTitle}>{section.title}</ThemedText>
           </View>
-
           <View style={styles.sectionContent}>
             <View style={styles.grid}>
-              {data.map((card: any, index: number) => {
-                const scale =
-                  cardAnimations.get(card.id) || new Animated.Value(1);
-
+              {section.data.map((card: WalletCard, index: number) => {
+                const scale = cardAnimations.get(card.id) || new Animated.Value(1);
                 return (
                   <Animated.View
                     key={card.id}
                     style={[
-                      styles.cardWrapper,
+                      styles.cardContainer,
                       {
                         transform: [{ scale }],
                         opacity: scale,
@@ -308,19 +268,57 @@ export default function Index() {
                   >
                     <StemCard
                       imageUrl={card.imageUrl}
-                      collected={card.collected}
-                      onPress={() => handleCardPress(card)}
+                      name={card.title}
+                      onPress={() => {
+                        setSelectedCardId(card.id);
+                        setSelectedCardImageUrl(card.imageUrl);
+                      }}
                     />
                   </Animated.View>
                 );
               })}
             </View>
           </View>
-        </View>
+        </ImageBackground>
       );
-    },
-    [colors, handleCardPress, isDarkMode, getSectionBackground],
-  );
+    }
+
+    return (
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionTitleContainer}>
+          <ThemedText style={styles.sectionTitle}>{section.title}</ThemedText>
+        </View>
+        <View style={styles.sectionContent}>
+          <View style={styles.grid}>
+            {section.data.map((card: WalletCard, index: number) => {
+              const scale = cardAnimations.get(card.id) || new Animated.Value(1);
+              return (
+                <Animated.View
+                  key={card.id}
+                  style={[
+                    styles.cardContainer,
+                    {
+                      transform: [{ scale }],
+                      opacity: scale,
+                    },
+                  ]}
+                >
+                  <StemCard
+                    imageUrl={card.imageUrl}
+                    name={card.title}
+                    onPress={() => {
+                      setSelectedCardId(card.id);
+                      setSelectedCardImageUrl(card.imageUrl);
+                    }}
+                  />
+                </Animated.View>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+    );
+  }, [cardAnimations]);
 
   // Render an empty fallback
   const renderEmpty = useCallback(
@@ -385,18 +383,33 @@ export default function Index() {
     <ThemedView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <Header
-        title="Wallet"
-        style={{ backgroundColor: colors.background }}
-        textColor={isDarkMode ? "#FFFFFF" : colors.text}
-        iconColor={isDarkMode ? "#FFFFFF" : colors.tint}
-      />
+      <Header title="Wallet" />
 
       <AnimatedSectionList
         sections={categories}
-        keyExtractor={(item) => item.id}
-        renderSectionHeader={renderSectionHeader}
-        ListEmptyComponent={renderEmpty}
+        renderItem={({ item }) => {
+          if (!item?.imageUrl) {
+            console.warn("🚫 Broken card:", item);
+            return (
+              <ThemedText style={{ color: "red" }}>
+                Missing image
+              </ThemedText>
+            );
+          }
+
+          return (
+            <StemCard
+              imageUrl={item.imageUrl}
+              name={item.title}
+              onPress={() => {
+                setSelectedCardId(item.id);
+                setSelectedCardImageUrl(item.imageUrl);
+              }}
+            />
+          );
+        }}
+        renderSectionHeader={({ section }) => renderSectionHeader({ section })}
+        keyExtractor={(item, index) => item.id || index.toString()}
         contentContainerStyle={[
           styles.listContent,
           categories.length === 0 && styles.emptyList,
@@ -404,9 +417,7 @@ export default function Index() {
         ]}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          {
-            useNativeDriver: true,
-          },
+          { useNativeDriver: true }
         )}
         scrollEventThrottle={16}
         refreshControl={
@@ -428,7 +439,6 @@ export default function Index() {
             style={[styles.listFooter, { backgroundColor: colors.background }]}
           />
         }
-        renderItem={() => null} // We render cards in sectionHeader
         removeClippedSubviews={Platform.OS !== "web"}
         maxToRenderPerBatch={5}
         windowSize={5}
@@ -439,23 +449,13 @@ export default function Index() {
 
       <CardModal
         visible={!!selectedCardId}
-        imageUrl={selectedCardImageUrl}
-        cardId={selectedCardId}
+        cardId={selectedCardId || undefined}
+        imageUrl={selectedCardImageUrl || undefined}
         onClose={() => {
           log.debug("[Index] Closing card modal...");
           setSelectedCardId(null);
           setSelectedCardImageUrl(null);
         }}
-        isDarkMode={isDarkMode}
-        collected={
-          selectedCardId
-            ? categories.some((category) =>
-                category.data.some(
-                  (card) => card.id === selectedCardId && card.collected,
-                ),
-              )
-            : false
-        }
       />
     </ThemedView>
   );
@@ -479,14 +479,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  sectionContainer: {
+  sectionHeader: {
     marginBottom: 0, // Remove margin to eliminate gaps
     paddingBottom: 10, // Add padding instead to maintain spacing
     width: "100%",
     position: "relative",
     overflow: "hidden", // Ensure background doesn't leak
   },
-  sectionHeaderContainer: {
+  sectionTitleContainer: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginBottom: 16,
@@ -495,20 +495,11 @@ const styles = StyleSheet.create({
     width: "100%",
     zIndex: 1,
   },
-  sectionHeader: {
+  sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
     textTransform: "uppercase",
     textAlign: "center",
-  },
-  sectionBackground: {
-    position: "absolute",
-    width: Dimensions.get("window").width,
-    left: 0,
-    top: 0,
-    bottom: 0,
-    opacity: 0.25,
-    height: "130%", // Increase height to ensure overlap with next section
   },
   sectionContent: {
     width: "100%",
@@ -521,7 +512,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "space-between",
   },
-  cardWrapper: {
+  cardContainer: {
     width: "48%",
     marginBottom: 16,
   },

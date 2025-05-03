@@ -10,6 +10,7 @@ import {
   useColorScheme,
   ActivityIndicator,
   Image,
+  TouchableOpacity,
 } from 'react-native';
 
 // Add image prefetching and caching
@@ -32,7 +33,27 @@ const STORAGE_KEYS = {
 // Flag to indicate "Coming Soon" mode
 const IS_COMING_SOON = true;
 
-const MOCK_ACHIEVEMENTS = [
+interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: any;
+  points: number;
+  progress: number;
+  total: number;
+  completed: boolean;
+  dateCompleted?: string;
+  type: 'milestone' | 'progress';
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+}
+
+interface AchievementStats {
+  completed: number;
+  total: number;
+  points: number;
+}
+
+const MOCK_ACHIEVEMENTS: Achievement[] = [
   {
     id: '1',
     title: 'Epic Pioneer',
@@ -103,19 +124,19 @@ const Achievements = () => {
   const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === 'dark');
   const colors = useMemo(() => Colors[isDarkMode ? 'dark' : 'light'], [isDarkMode]);
 
-  const [achievements, setAchievements] = useState([]);
-  const [loading, setLoading] = useState(false); // Set to false by default for "Coming Soon"
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
-  const [stats, setStats] = useState({
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<AchievementStats>({
     completed: 0,
     total: 0,
     points: 0,
   });
 
   const scrollY = useRef(new Animated.Value(0)).current;
-  const itemAnimations = useRef(new Map()).current;
-  const refreshInterval = useRef(null);
+  const itemAnimations = useRef(new Map<string, Animated.Value>()).current;
+  const refreshInterval = useRef<NodeJS.Timeout | null>(null);
   const isMounted = useRef(true);
 
   // Enhanced theme management
@@ -125,7 +146,7 @@ const Achievements = () => {
         const savedTheme = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
         if (savedTheme !== null) {
           setIsDarkMode(savedTheme === 'dark');
-        } else {
+        } else if (systemColorScheme) {
           setIsDarkMode(systemColorScheme === 'dark');
           await AsyncStorage.setItem(STORAGE_KEYS.THEME, systemColorScheme);
         }
@@ -228,13 +249,13 @@ const Achievements = () => {
     }
   };
 
-  const animateItems = useCallback((items) => {
+  const animateItems = useCallback((items: Achievement[]) => {
     if (!IS_COMING_SOON) {
       const animations = items.map((item, index) => {
         if (!itemAnimations.has(item.id)) {
           itemAnimations.set(item.id, new Animated.Value(0));
         }
-        return Animated.spring(itemAnimations.get(item.id), {
+        return Animated.spring(itemAnimations.get(item.id)!, {
           toValue: 1,
           tension: 50,
           friction: 7,
@@ -311,65 +332,46 @@ const Achievements = () => {
   };
 
   const handleRefresh = useCallback(() => {
-    if (!IS_COMING_SOON) {
-      setRefreshing(true);
-      loadAchievements(true);
+    setRefreshing(true);
+    loadAchievements(true).finally(() => setRefreshing(false));
+  }, [loadAchievements]);
+
+  const handleRedeem = useCallback((achievement: Achievement) => {
+    if (IS_COMING_SOON) {
+      Alert.alert(
+        'Coming Soon',
+        'This feature will be available in a future update!',
+        [{ text: 'OK' }]
+      );
+      return;
     }
+
+    // Implementation for when feature is ready
+    console.log('Redeeming achievement:', achievement.id);
   }, []);
 
-  const handleRedeem = useCallback(async (achievement) => {
-    if (!IS_COMING_SOON) {
-      if (!achievement.completed) {
-        Alert.alert('Not Available', 'Complete this achievement to claim your reward!');
-        return;
-      }
-
-      try {
-        // Simulated API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        Alert.alert(
-          'Success!',
-          `You've claimed ${achievement.points} points for "${achievement.title}"!`,
-          [{ text: 'OK' }]
-        );
-
-        const animation = itemAnimations.get(achievement.id);
-        if (animation) {
-          Animated.sequence([
-            Animated.spring(animation, {
-              toValue: 0.95,
-              tension: 100,
-              friction: 5,
-              useNativeDriver: true,
-            }),
-            Animated.spring(animation, {
-              toValue: 1,
-              tension: 100,
-              friction: 5,
-              useNativeDriver: true,
-            }),
-          ]).start();
-        }
-
-      } catch (error) {
-        console.error('Achievement redemption error:', error);
-        Alert.alert('Error', 'Failed to redeem achievement. Please try again.');
-      }
+  const renderItem = useCallback(({ item }: { item: Achievement }) => {
+    const animation = itemAnimations.get(item.id) || new Animated.Value(0);
+    if (!itemAnimations.has(item.id)) {
+      itemAnimations.set(item.id, animation);
     }
-  }, []);
-
-  const renderItem = useCallback(({ item }) => {
-    const scale = itemAnimations.get(item.id) || new Animated.Value(1);
 
     return (
       <Animated.View
-        style={{
-          transform: [{ scale }],
-          opacity: scale,
-          width: '100%',
-          alignItems: 'center',
-        }}
+        style={[
+          styles.achievementItem,
+          {
+            opacity: animation,
+            transform: [
+              {
+                translateY: animation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [50, 0],
+                }),
+              },
+            ],
+          },
+        ]}
       >
         <AchievementItem
           title={item.title}
@@ -457,87 +459,42 @@ const Achievements = () => {
   }
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
-      <Header
-        title="Achievements"
-        onProfilePress={() => console.log('Profile icon pressed')}
-        style={{ backgroundColor: colors.background }}
-        textColor={colors.text}
-        iconColor={colors.tint}
-      />
-
-      {/* Commented out original achievements content for production */}
-      {/*
-      <AnimatedFlatList
-        data={achievements}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={renderEmpty}
-        contentContainerStyle={[
-          styles.listContainer,
-          achievements.length === 0 && styles.emptyList,
-          { backgroundColor: colors.background }
-        ]}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-        scrollEventThrottle={16}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.tint}
-            colors={[colors.tint]}
-            progressBackgroundColor={colors.card}
-          />
-        }
-        ListFooterComponent={<View style={styles.listFooter} />}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={3}
-        updateCellsBatchingPeriod={50}
-        windowSize={7}
-        initialNumToRender={5}
-        onEndReachedThreshold={0.5}
-        maintainVisibleContentPosition={{
-          minIndexForVisible: 0,
-          autoscrollToTopThreshold: 10,
-        }}
-        onScrollToIndexFailed={() => {}}
-        showsVerticalScrollIndicator={false}
-        getItemLayout={(data, index) => ({
-          length: 170, // Approximate height of each item
-          offset: 170 * index,
-          index,
-        })}
-      />
-      */}
-
-      {/* Coming Soon Page */}
-      <View style={[styles.comingSoonContainer, { backgroundColor: colors.background }]}>
-        <FontAwesome
-          name="trophy"
-          size={64}
-          color={isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.icon}
+    <ThemedView style={styles.container}>
+      <Header title="Achievements" />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.tint} />
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <ThemedText style={styles.errorText}>{error}</ThemedText>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: colors.tint }]}
+            onPress={() => loadAchievements()}
+          >
+            <ThemedText style={styles.retryButtonText}>Retry</ThemedText>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={achievements}
+          renderItem={renderItem}
+          keyExtractor={(item: Achievement) => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.tint}
+            />
+          }
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+          scrollEventThrottle={16}
         />
-        <ThemedText
-          style={[
-            styles.comingSoonText,
-            { color: isDarkMode ? "#FFFFFF" : colors.text },
-          ]}
-        >
-          Achievements Coming Soon!
-        </ThemedText>
-        <ThemedText
-          style={[
-            styles.comingSoonSubtext,
-            { color: isDarkMode ? "rgba(255, 255, 255, 0.7)" : colors.textSecondary },
-          ]}
-        >
-          We're working on exciting achievements for you. Check back later!
-        </ThemedText>
-      </View>
+      )}
     </ThemedView>
   );
 };
@@ -638,6 +595,35 @@ const styles = StyleSheet.create({
     marginTop: 0, // Removed marginTop since gap handles spacing
     textAlign: 'center',
     paddingHorizontal: 16,
+  },
+  achievementItem: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  errorText: {
+    fontSize: 16,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    padding: 16,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
 });
 

@@ -18,8 +18,24 @@ import { logger } from "react-native-logs";
 // Create a logger instance with default settings
 const log = logger.createLogger();
 
+interface LoginData {
+  email: string;
+  password: string;
+}
+
+interface SignupData {
+  name: string;
+  email: string;
+  password: string;
+}
+
+interface VerificationData {
+  email: string;
+  code: string;
+}
+
 // Custom Checkbox Component
-const CustomCheckbox = ({ value, onValueChange }) => {
+const CustomCheckbox = ({ value, onValueChange }: { value: boolean; onValueChange: (value: boolean) => void }) => {
   return (
     <TouchableOpacity
       style={[styles.checkbox, value && styles.checkboxChecked]}
@@ -40,14 +56,14 @@ export default function AuthFlow() {
   const [activeTab, setActiveTab] = useState<"login" | "signup" | "verify">("login");
 
   // Login form data
-  const [loginData, setLoginData] = useState({ email: "", password: "" });
+  const [loginData, setLoginData] = useState<LoginData>({ email: "", password: "" });
 
   // Sign-up form data
-  const [signupData, setSignupData] = useState({ name: "", email: "", password: "" });
+  const [signupData, setSignupData] = useState<SignupData>({ name: "", email: "", password: "" });
   const [isAgeVerified, setIsAgeVerified] = useState(false); // Age verification state
 
   // Verification form data
-  const [verificationData, setVerificationData] = useState({ email: "", code: "" });
+  const [verificationData, setVerificationData] = useState<VerificationData>({ email: "", code: "" });
 
   // UI state
   const [loading, setLoading] = useState(false);

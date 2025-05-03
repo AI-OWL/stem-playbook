@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,9 +15,25 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
+import { User } from '../types';
+
+interface ImagePickerType {
+  MediaTypeOptions: {
+    Images: string;
+  };
+  requestMediaLibraryPermissionsAsync: () => Promise<{ status: string }>;
+  requestCameraPermissionsAsync: () => Promise<{ status: string }>;
+  launchImageLibraryAsync: (options?: any) => Promise<ImagePickerResult>;
+  launchCameraAsync: (options?: any) => Promise<ImagePickerResult>;
+}
+
+interface ImagePickerResult {
+  canceled: boolean;
+  assets?: { uri: string }[];
+}
 
 // Create a fallback if image picker is not available
-const ImagePicker = {
+const ImagePicker: ImagePickerType = {
   MediaTypeOptions: {
     Images: 'Images',
   },
@@ -34,7 +50,7 @@ const ImagePicker = {
 };
 
 // Attempt to import expo-image-picker dynamically
-let ExpoImagePicker;
+let ExpoImagePicker: ImagePickerType;
 try {
   ExpoImagePicker = require('expo-image-picker');
 } catch (error) {
@@ -46,10 +62,13 @@ function EditProfileScreen() {
   const router = useRouter();
   const systemColorScheme = useColorScheme();
   const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === 'dark');
-  const colors = Colors[isDarkMode ? 'dark' : 'light'];
-
-  const [profileImage, setProfileImage] = useState(null);
+  const colors = {
+    ...Colors[isDarkMode ? 'dark' : 'light'],
+    error: '#ef4444', // Add error color
+  };
   const [loading, setLoading] = useState(false);
+  const [userData, setUserData] = useState<User | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
 
   useEffect(() => {
