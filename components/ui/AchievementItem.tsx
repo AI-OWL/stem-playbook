@@ -47,7 +47,7 @@ const AchievementItem: React.FC<AchievementItemProps> = ({
       <View style={styles.imageContainer}>
         {imageUrl ? (
           <Image
-            source={typeof imageUrl === 'number' ? imageUrl : (typeof imageUrl === 'string' ? { uri: imageUrl } : null)}
+            source={typeof imageUrl === 'number' ? imageUrl : (typeof imageUrl === 'string' ? { uri: imageUrl } : undefined)}
             style={styles.image}
             resizeMode="contain"
           />

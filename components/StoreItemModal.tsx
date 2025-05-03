@@ -11,6 +11,7 @@ import {
   FlatList,
   Animated,
   Platform,
+  ImageSourcePropType,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -135,7 +136,7 @@ const StoreItemModal: React.FC<StoreItemModalProps> = ({
   const renderDots = () => {
     return (
       <View style={styles.dotsContainer}>
-        {images.map((_, index) => (
+        {images.map((_: ImageSourcePropType, index: number) => (
           <View
             key={index}
             style={[
