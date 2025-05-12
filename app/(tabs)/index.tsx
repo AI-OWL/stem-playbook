@@ -396,7 +396,7 @@ export default function Index() {
     <ThemedView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <Header title="Wallet" />
+      <Header title="All Stars" />
 
       <AnimatedSectionList
         sections={categories}
