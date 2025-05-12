@@ -2,13 +2,20 @@
 import api from "./api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { User } from "../types";
+import {
+  registerForPushNotificationsAsync,
+  savePushToken,
+} from "../../src/utils/notificationUtils";
 
 /**
  * Login function - calls /auth/login
  * Expects { token, user } in the response
  * Stores them in AsyncStorage
  */
-export async function login(email: string, password: string): Promise<{ token: string; user: User }> {
+export async function login(
+  email: string,
+  password: string
+): Promise<{ token: string; user: User }> {
   const response = await api.post("/auth/login", { email, password });
 
   const { token, user } = response.data;
@@ -18,6 +25,18 @@ export async function login(email: string, password: string): Promise<{ token: s
   await AsyncStorage.setItem("token", token);
   await AsyncStorage.setItem("user", JSON.stringify(user));
 
+  // After successful login, request push notification permissions
+  // and save the token to the backend
+  try {
+    const pushToken = await registerForPushNotificationsAsync();
+    if (pushToken) {
+      await savePushToken(pushToken);
+    }
+  } catch (error) {
+    console.error("Error registering for push notifications:", error);
+    // Continue even if push notification registration fails
+  }
+
   return { token, user };
 }
 
@@ -26,7 +45,11 @@ export async function login(email: string, password: string): Promise<{ token: s
  * Now returns just a message from the backend
  * No token yet, because Cognito sign-up doesn't return one
  */
-export async function signup(name: string, email: string, password: string): Promise<{ message: string }> {
+export async function signup(
+  name: string,
+  email: string,
+  password: string
+): Promise<{ message: string }> {
   const response = await api.post("/auth/signup", { name, email, password });
   // e.g. { message: "User registered successfully. Please check your email for the verification code." }
   return response.data;
@@ -36,7 +59,10 @@ export async function signup(name: string, email: string, password: string): Pro
  * Confirm Signup - calls /auth/confirm-signup
  * Returns { message: string }
  */
-export async function confirmSignup(email: string, code: string): Promise<{ message: string }> {
+export async function confirmSignup(
+  email: string,
+  code: string
+): Promise<{ message: string }> {
   const response = await api.post("/auth/confirm-signup", { email, code });
   return response.data;
 }
@@ -45,7 +71,9 @@ export async function confirmSignup(email: string, code: string): Promise<{ mess
  * Resend Verification - calls /auth/resend-verification
  * Returns { message: string }
  */
-export async function resendVerification(email: string): Promise<{ message: string }> {
+export async function resendVerification(
+  email: string
+): Promise<{ message: string }> {
   const response = await api.post("/auth/resend-verification", { email });
   return response.data;
 }
