@@ -89,7 +89,7 @@ export default function AuthFlow() {
     try {
       const response = await login(loginData.email, loginData.password);
       log.debug("[AuthFlow] Login successful, navigating to main tabs.");
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/home");
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Login failed";
       log.error("[AuthFlow] Login error:", msg);
