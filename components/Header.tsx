@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import React from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 
 interface HeaderProps {
   title: string;
@@ -12,14 +12,17 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.container}>
         <Image
-          source={require('../assets/images/STEM All-Stars Logo.png')}
+          source={require("../assets/images/STEM All-Stars Logo.png")}
           style={styles.logo}
         />
         <Text style={styles.title}>{title}</Text>
-        <TouchableOpacity onPress={() => router.push('/profile')} style={styles.iconContainer}>
+        <TouchableOpacity
+          onPress={() => router.push("/profile")}
+          style={styles.iconContainer}
+        >
           <Ionicons name="person-circle-outline" size={24} color="black" />
         </TouchableOpacity>
       </View>
@@ -29,30 +32,30 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#d8f1fc',
+    backgroundColor: "#d8f1fc",
   },
   container: {
     height: 60,
-    backgroundColor: '#d8f1fc',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+    backgroundColor: "#d8f1fc",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
   },
   logo: {
     width: 40,
     height: 40,
-    position: 'absolute',
+    position: "absolute",
     left: 16,
   },
   title: {
     fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
     flex: 1,
   },
   iconContainer: {
-    position: 'absolute',
+    position: "absolute",
     right: 16,
   },
 });

@@ -14,11 +14,17 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Video, ResizeMode } from "expo-av";
+import { Video, ResizeMode, AVPlaybackStatus } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
 import { fetchCard } from "../services/cardService";
 import { updateUserPoints, getStoredUser } from "../services/userService";
 import { useColorScheme } from "react-native";
+import {
+  trackVideoStarted,
+  trackVideoProgress,
+  trackVideoCompleted,
+  trackPointsRedeemed,
+} from "../services/analyticsService";
 
 // Define color constants
 const Colors = {
@@ -63,6 +69,13 @@ export default function CardDetailsScreen() {
   const [videoWatched, setVideoWatched] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const videoRef = useRef(null);
+  const [videoStartTime, setVideoStartTime] = useState<number | null>(null);
+  const [videoWatchTime, setVideoWatchTime] = useState(0);
+  const [videoTrackedProgress, setVideoTrackedProgress] = useState({
+    tracked25: false,
+    tracked50: false,
+    tracked75: false,
+  });
 
   // Theme management
   useEffect(() => {
@@ -73,7 +86,10 @@ export default function CardDetailsScreen() {
           setIsDarkMode(savedTheme === "dark");
         } else {
           setIsDarkMode(colorScheme === "dark");
-          await AsyncStorage.setItem("theme", colorScheme === "dark" ? "dark" : "light");
+          await AsyncStorage.setItem(
+            "theme",
+            colorScheme === "dark" ? "dark" : "light"
+          );
         }
       } catch (error) {
         console.error("Theme check error:", error);
@@ -135,15 +151,26 @@ export default function CardDetailsScreen() {
               await updateUserPoints(user.id, 100);
               await AsyncStorage.setItem(`redeemed_${id}`, "true");
               setPointsRedeemed(true);
-              
-              Alert.alert("Success", "Card redeemed! 100 points added to your account!");
+
+              // Track points redeemed event
+              if (cardData) {
+                trackPointsRedeemed(id as string, cardData.name, 100).catch(
+                  (error) =>
+                    console.error("Error tracking points redeemed:", error)
+                );
+              }
+
+              Alert.alert(
+                "Success",
+                "Card redeemed! 100 points added to your account!"
+              );
             } catch (error) {
               console.error("Error redeeming card:", error);
               Alert.alert("Error", "Failed to redeem card. Please try again.", [
                 {
                   text: "OK",
                   style: "default",
-                }
+                },
               ]);
             }
           },
@@ -151,21 +178,102 @@ export default function CardDetailsScreen() {
       ],
       {
         cancelable: true,
-        userInterfaceStyle: colors.background === "#FFFFFF" ? 'light' : 'dark'
+        userInterfaceStyle: colors.background === "#FFFFFF" ? "light" : "dark",
       }
     );
   };
 
-  const onPlaybackStatusUpdate = (status: any) => {
+  const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
+    if (!status.isLoaded) return;
+
+    // Track video start time when playback begins
+    if (status.isPlaying && !videoStartTime && !status.didJustFinish) {
+      setVideoStartTime(Date.now());
+      if (cardData) {
+        trackVideoStarted(id as string, cardData.name, cardData.videoUrl).catch(
+          (error) => console.error("Error tracking video start:", error)
+        );
+      }
+    }
+
+    // Track progress percentage milestones
+    if (status.isPlaying && status.positionMillis && status.durationMillis) {
+      const currentTimeSeconds = status.positionMillis / 1000;
+      setVideoWatchTime(currentTimeSeconds);
+
+      const progressPercentage =
+        (status.positionMillis / status.durationMillis) * 100;
+
+      // Track 25% progress
+      if (progressPercentage >= 25 && !videoTrackedProgress.tracked25) {
+        setVideoTrackedProgress((prev) => ({ ...prev, tracked25: true }));
+        if (cardData) {
+          trackVideoProgress(
+            id as string,
+            cardData.name,
+            25,
+            currentTimeSeconds
+          ).catch((error) =>
+            console.error("Error tracking video progress:", error)
+          );
+        }
+      }
+
+      // Track 50% progress
+      if (progressPercentage >= 50 && !videoTrackedProgress.tracked50) {
+        setVideoTrackedProgress((prev) => ({ ...prev, tracked50: true }));
+        if (cardData) {
+          trackVideoProgress(
+            id as string,
+            cardData.name,
+            50,
+            currentTimeSeconds
+          ).catch((error) =>
+            console.error("Error tracking video progress:", error)
+          );
+        }
+      }
+
+      // Track 75% progress
+      if (progressPercentage >= 75 && !videoTrackedProgress.tracked75) {
+        setVideoTrackedProgress((prev) => ({ ...prev, tracked75: true }));
+        if (cardData) {
+          trackVideoProgress(
+            id as string,
+            cardData.name,
+            75,
+            currentTimeSeconds
+          ).catch((error) =>
+            console.error("Error tracking video progress:", error)
+          );
+        }
+      }
+    }
+
+    // Track video completion
     if (status.didJustFinish && !status.isLooping) {
       setVideoWatched(true);
+      if (cardData && videoWatchTime > 0) {
+        trackVideoCompleted(
+          id as string,
+          cardData.name,
+          cardData.videoUrl,
+          videoWatchTime
+        ).catch((error) =>
+          console.error("Error tracking video completion:", error)
+        );
+      }
     }
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        style={[styles.safeArea, { backgroundColor: colors.background }]}
+      >
+        <View
+          style={[styles.container, { backgroundColor: colors.background }]}
+        >
           <ActivityIndicator size="large" color={colors.tint} />
           <Text style={[styles.loadingText, { color: colors.text }]}>
             Loading card...
@@ -177,8 +285,12 @@ export default function CardDetailsScreen() {
 
   if (error || !cardData) {
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        style={[styles.safeArea, { backgroundColor: colors.background }]}
+      >
+        <View
+          style={[styles.container, { backgroundColor: colors.background }]}
+        >
           <Text style={[styles.errorText, { color: colors.error }]}>
             {error || "Card not found"}
           </Text>
@@ -193,13 +305,20 @@ export default function CardDetailsScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+    >
       <StatusBar style={isDarkMode ? "light" : "dark"} />
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.stickyTitleContainer, { 
-          backgroundColor: colors.card,
-          borderBottomColor: colors.border 
-        }]}>
+        <View
+          style={[
+            styles.stickyTitleContainer,
+            {
+              backgroundColor: colors.card,
+              borderBottomColor: colors.border,
+            },
+          ]}
+        >
           <TouchableOpacity
             style={styles.backButtonContainer}
             onPress={() => router.back()}
@@ -211,12 +330,14 @@ export default function CardDetailsScreen() {
           </Text>
         </View>
 
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           style={{ backgroundColor: colors.background }}
         >
           {cardData.videoUrl ? (
-            <View style={[styles.videoContainer, { backgroundColor: colors.card }]}> 
+            <View
+              style={[styles.videoContainer, { backgroundColor: colors.card }]}
+            >
               <Video
                 ref={videoRef}
                 source={{ uri: cardData.videoUrl }}
@@ -230,57 +351,63 @@ export default function CardDetailsScreen() {
             </View>
           ) : null}
 
-          <Text style={[styles.tagline, { color: colors.text }]}> 
+          <Text style={[styles.tagline, { color: colors.text }]}>
             {cardData.tagline}
           </Text>
-          <Text style={[styles.description, { color: colors.textSecondary }]}> 
+          <Text style={[styles.description, { color: colors.textSecondary }]}>
             {cardData.bodyText}
           </Text>
 
           {/* Fallback message if video fails to load */}
           {videoError && !pointsRedeemed && cardData.videoUrl && (
-            <Text style={[styles.watchMessage, { color: colors.error }]}> 
+            <Text style={[styles.watchMessage, { color: colors.error }]}>
               Video unavailable, but you can still redeem your points.
             </Text>
           )}
 
           {/* Watch message if video is present and not watched, and no error */}
-          {!videoWatched && !pointsRedeemed && cardData.videoUrl && !videoError && (
-            <Text style={[styles.watchMessage, { color: colors.textSecondary }]}> 
-              Please watch the entire video to redeem points.
-            </Text>
-          )}
+          {!videoWatched &&
+            !pointsRedeemed &&
+            cardData.videoUrl &&
+            !videoError && (
+              <Text
+                style={[styles.watchMessage, { color: colors.textSecondary }]}
+              >
+                Please watch the entire video to redeem points.
+              </Text>
+            )}
 
           {/* Message if no video */}
           {!cardData.videoUrl && !pointsRedeemed && (
-            <Text style={[styles.watchMessage, { color: colors.tint }]}> 
+            <Text style={[styles.watchMessage, { color: colors.tint }]}>
               No video required. Click below to redeem your points.
             </Text>
           )}
           {!cardData.videoUrl && pointsRedeemed && (
-            <Text style={[styles.watchMessage, { color: colors.tint }]}> 
+            <Text style={[styles.watchMessage, { color: colors.tint }]}>
               No video required. Points have been redeemed!
             </Text>
           )}
 
           {/* Redeem button logic */}
-          {(cardData.videoUrl ? (videoWatched || videoError) : true) && !pointsRedeemed && (
-            <TouchableOpacity
-              style={[
-                styles.redeemButton,
-                {
-                  backgroundColor: colors.tint,
-                  opacity: 1,
-                },
-              ]}
-              onPress={handleRedeemPoints}
-              disabled={pointsRedeemed}
-            >
-              <Text style={[styles.redeemButtonText, { color: colors.text }]}> 
-                Redeem for 100 Points
-              </Text>
-            </TouchableOpacity>
-          )}
+          {(cardData.videoUrl ? videoWatched || videoError : true) &&
+            !pointsRedeemed && (
+              <TouchableOpacity
+                style={[
+                  styles.redeemButton,
+                  {
+                    backgroundColor: colors.tint,
+                    opacity: 1,
+                  },
+                ]}
+                onPress={handleRedeemPoints}
+                disabled={pointsRedeemed}
+              >
+                <Text style={[styles.redeemButtonText, { color: colors.text }]}>
+                  Redeem for 100 Points
+                </Text>
+              </TouchableOpacity>
+            )}
           {pointsRedeemed && (
             <TouchableOpacity
               style={[
@@ -292,7 +419,12 @@ export default function CardDetailsScreen() {
               ]}
               disabled={true}
             >
-              <Text style={[styles.redeemButtonText, { color: colors.textSecondary }]}> 
+              <Text
+                style={[
+                  styles.redeemButtonText,
+                  { color: colors.textSecondary },
+                ]}
+              >
                 Card Redeemed
               </Text>
             </TouchableOpacity>
@@ -316,7 +448,8 @@ const styles = StyleSheet.create({
   },
   stickyTitleContainer: {
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === "android" ? (RNStatusBar.currentHeight || 0) + 10 : 10,
+    paddingTop:
+      Platform.OS === "android" ? (RNStatusBar.currentHeight || 0) + 10 : 10,
     paddingBottom: 10,
     borderBottomWidth: 1,
     flexDirection: "row",

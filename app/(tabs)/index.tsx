@@ -20,6 +20,8 @@ import {
   SectionListRenderItemInfo,
   SectionListProps,
   ImageBackground,
+  TouchableOpacity,
+  Text,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedText } from "@/components/ThemedText";
@@ -279,6 +281,8 @@ export default function Index() {
                       <StemCard
                         imageUrl={card.imageUrl}
                         name={card.title}
+                        id={card.id}
+                        category={section.title}
                         onPress={() => {
                           setSelectedCardId(card.id);
                           setSelectedCardImageUrl(card.imageUrl);
@@ -317,6 +321,8 @@ export default function Index() {
                     <StemCard
                       imageUrl={card.imageUrl}
                       name={card.title}
+                      id={card.id}
+                      category={section.title}
                       onPress={() => {
                         setSelectedCardId(card.id);
                         setSelectedCardImageUrl(card.imageUrl);
