@@ -15,7 +15,7 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
         <Image
-          source={require('../assets/images/icon.png')}
+          source={require('../assets/images/STEM All-Stars Logo.png')}
           style={styles.logo}
         />
         <Text style={styles.title}>{title}</Text>

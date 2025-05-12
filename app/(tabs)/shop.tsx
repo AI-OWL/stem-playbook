@@ -225,7 +225,7 @@ function ShopContent({
       {/* Hidden Page with Logo */}
       <View style={[styles.comingSoonContainer, { backgroundColor: colors.background }]}>
         <Image
-          source={require('../../assets/images/icon.png')}
+          source={require('../../assets/images/STEM All-Stars Logo.png')}
           style={styles.logoImage}
           resizeMode="contain"
         />

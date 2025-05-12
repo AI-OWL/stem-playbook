@@ -190,11 +190,11 @@ export default function AuthFlow() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Logo + App Name */}
         <Image
-          source={require("../assets/images/adaptive-icon.png")}
+          source={require("../assets/images/STEM All-Stars Logo.png")}
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={styles.title}>STEM Playbook</Text>
+        <Text style={styles.title}>STEM All-Stars</Text>
 
         {/* Tab Switcher */}
         <View style={styles.tabContainer}>
