@@ -61,6 +61,7 @@ export default function CardDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [videoWatched, setVideoWatched] = useState(false);
+  const [videoError, setVideoError] = useState(false);
   const videoRef = useRef(null);
 
   // Theme management
@@ -214,48 +215,88 @@ export default function CardDetailsScreen() {
           contentContainerStyle={styles.scrollContent}
           style={{ backgroundColor: colors.background }}
         >
-          <View style={[styles.videoContainer, { backgroundColor: colors.card }]}>
-            <Video
-              ref={videoRef}
-              source={{ uri: cardData.videoUrl }}
-              style={styles.video}
-              useNativeControls
-              resizeMode={ResizeMode.CONTAIN}
-              isLooping={false}
-              onPlaybackStatusUpdate={onPlaybackStatusUpdate}
-            />
-          </View>
+          {cardData.videoUrl ? (
+            <View style={[styles.videoContainer, { backgroundColor: colors.card }]}> 
+              <Video
+                ref={videoRef}
+                source={{ uri: cardData.videoUrl }}
+                style={styles.video}
+                useNativeControls
+                resizeMode={ResizeMode.CONTAIN}
+                isLooping={false}
+                onPlaybackStatusUpdate={onPlaybackStatusUpdate}
+                onError={() => setVideoError(true)}
+              />
+            </View>
+          ) : null}
 
-          <Text style={[styles.tagline, { color: colors.text }]}>
+          <Text style={[styles.tagline, { color: colors.text }]}> 
             {cardData.tagline}
           </Text>
-          <Text style={[styles.description, { color: colors.textSecondary }]}>
+          <Text style={[styles.description, { color: colors.textSecondary }]}> 
             {cardData.bodyText}
           </Text>
 
-          {!videoWatched && !pointsRedeemed && (
-            <Text style={[styles.watchMessage, { color: colors.textSecondary }]}>
+          {/* Fallback message if video fails to load */}
+          {videoError && !pointsRedeemed && cardData.videoUrl && (
+            <Text style={[styles.watchMessage, { color: colors.error }]}> 
+              Video unavailable, but you can still redeem your points.
+            </Text>
+          )}
+
+          {/* Watch message if video is present and not watched, and no error */}
+          {!videoWatched && !pointsRedeemed && cardData.videoUrl && !videoError && (
+            <Text style={[styles.watchMessage, { color: colors.textSecondary }]}> 
               Please watch the entire video to redeem points.
             </Text>
           )}
 
-          <TouchableOpacity
-            style={[
-              styles.redeemButton,
-              {
-                backgroundColor: pointsRedeemed ? colors.border : colors.tint,
-                opacity: (pointsRedeemed || !videoWatched) ? 0.7 : 1,
-              },
-            ]}
-            onPress={handleRedeemPoints}
-            disabled={pointsRedeemed || !videoWatched}
-          >
-            <Text style={[styles.redeemButtonText, { 
-              color: pointsRedeemed ? colors.textSecondary : colors.text 
-            }]}>
-              {pointsRedeemed ? "Card Redeemed" : "Redeem for 100 Points"}
+          {/* Message if no video */}
+          {!cardData.videoUrl && !pointsRedeemed && (
+            <Text style={[styles.watchMessage, { color: colors.tint }]}> 
+              No video required. Click below to redeem your points.
             </Text>
-          </TouchableOpacity>
+          )}
+          {!cardData.videoUrl && pointsRedeemed && (
+            <Text style={[styles.watchMessage, { color: colors.tint }]}> 
+              No video required. Points have been redeemed!
+            </Text>
+          )}
+
+          {/* Redeem button logic */}
+          {(cardData.videoUrl ? (videoWatched || videoError) : true) && !pointsRedeemed && (
+            <TouchableOpacity
+              style={[
+                styles.redeemButton,
+                {
+                  backgroundColor: colors.tint,
+                  opacity: 1,
+                },
+              ]}
+              onPress={handleRedeemPoints}
+              disabled={pointsRedeemed}
+            >
+              <Text style={[styles.redeemButtonText, { color: colors.text }]}> 
+                Redeem for 100 Points
+              </Text>
+            </TouchableOpacity>
+          )}
+          {pointsRedeemed && (
+            <TouchableOpacity
+              style={[
+                styles.redeemButton,
+                {
+                  backgroundColor: colors.border,
+                  opacity: 0.7,
+                },
+              ]}
+              disabled={true}
+            >
+              <Text style={[styles.redeemButtonText, { color: colors.textSecondary }]}> 
+                Card Redeemed
+              </Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </View>
     </SafeAreaView>
