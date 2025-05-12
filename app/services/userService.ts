@@ -27,7 +27,10 @@ export const getStoredUser = async (): Promise<User | null> => {
 };
 
 // Add a card to the user's collection and update AsyncStorage
-export const addCardToUser = async (userId: string, cardId: string): Promise<User> => {
+export const addCardToUser = async (
+  userId: string,
+  cardId: string
+): Promise<User> => {
   try {
     const response = await api.put<User>(`/users/${userId}/cards`, { cardId });
     const updatedUser = response.data;
@@ -40,9 +43,14 @@ export const addCardToUser = async (userId: string, cardId: string): Promise<Use
 };
 
 // Update user's points and refresh stored data
-export const updateUserPoints = async (userId: string, pointsToAdd: number): Promise<User> => {
+export const updateUserPoints = async (
+  userId: string,
+  pointsToAdd: number
+): Promise<User> => {
   try {
-    const response = await api.put<User>(`/users/${userId}/points`, { points: pointsToAdd });
+    const response = await api.put<User>(`/users/${userId}/points`, {
+      points: pointsToAdd,
+    });
     const updatedUser = response.data;
     await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
     return updatedUser;
@@ -109,12 +117,56 @@ export const fetchTopUsers = async (): Promise<User[]> => {
 };
 
 // Fetch a user's rank by ID
-export const fetchUserRank = async (userId: string): Promise<{ rank: number; total: number }> => {
+export const fetchUserRank = async (
+  userId: string
+): Promise<{ rank: number; total: number }> => {
   try {
-    const response = await api.get<{ rank: number; total: number }>(`/users/rank/${userId}`);
+    const response = await api.get<{ rank: number; total: number }>(
+      `/users/rank/${userId}`
+    );
     return response.data;
   } catch (error) {
     console.error("Error fetching user rank:", error);
+    throw error;
+  }
+};
+
+// Update username
+export const updateUserProfile = async (
+  userId: string,
+  profileData: {
+    name?: string;
+  }
+): Promise<User> => {
+  try {
+    // Convert the 'name' property to 'username' for the API request
+    const response = await api.put<User>(`/users/${userId}/username`, {
+      username: profileData.name,
+    });
+    const updatedUser = response.data;
+    await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
+    return updatedUser;
+  } catch (error) {
+    console.error("Error updating username:", error);
+    throw error;
+  }
+};
+
+// Update user email
+export const updateUserEmail = async (
+  userId: string,
+  email: string
+): Promise<User> => {
+  try {
+    // Ensure we're using the expected API payload format
+    const response = await api.put<User>(`/users/${userId}/email`, {
+      email: email,
+    });
+    const updatedUser = response.data;
+    await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
+    return updatedUser;
+  } catch (error) {
+    console.error("Error updating user email:", error);
     throw error;
   }
 };

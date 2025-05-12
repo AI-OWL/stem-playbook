@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,22 +11,26 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/Colors';
-import { getStoredUser } from '../services/userService';
+} from "react-native";
+import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import { Colors } from "@/constants/Colors";
+import {
+  getStoredUser,
+  updateUserProfile,
+  updateUserEmail,
+} from "../services/userService";
 
 export default function AccountDetailsScreen() {
   const router = useRouter();
   const systemColorScheme = useColorScheme();
-  const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === 'dark');
-  const colors = Colors[isDarkMode ? 'dark' : 'light'];
+  const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === "dark");
+  const colors = Colors[isDarkMode ? "dark" : "light"];
 
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    name: "",
+    email: "",
   });
 
   const [isEdited, setIsEdited] = useState(false);
@@ -38,14 +42,14 @@ export default function AccountDetailsScreen() {
 
   const loadThemePreference = async () => {
     try {
-      const savedTheme = await AsyncStorage.getItem('theme');
+      const savedTheme = await AsyncStorage.getItem("theme");
       if (savedTheme) {
-        setIsDarkMode(savedTheme === 'dark');
+        setIsDarkMode(savedTheme === "dark");
       } else {
-        setIsDarkMode(systemColorScheme === 'dark');
+        setIsDarkMode(systemColorScheme === "dark");
       }
     } catch (error) {
-      console.error('Error loading theme:', error);
+      console.error("Error loading theme:", error);
     }
   };
 
@@ -59,23 +63,21 @@ export default function AccountDetailsScreen() {
         });
       } else {
         setFormData({
-          name: 'John Doe',
-          email: 'john.doe@example.com',
+          name: "John Doe",
+          email: "john.doe@example.com",
         });
       }
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error("Error loading user data:", error);
       setFormData({
-        name: 'John Doe',
-        email: 'john.doe@example.com',
+        name: "John Doe",
+        email: "john.doe@example.com",
       });
     }
   };
 
-  // Commented out for production as feature is incomplete
-  /*
   const handleInputChange = (field: keyof typeof formData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
     setIsEdited(true);
   };
 
@@ -86,65 +88,104 @@ export default function AccountDetailsScreen() {
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
-      Alert.alert('Error', 'Please enter your name');
+      Alert.alert("Error", "Please enter your name");
       return;
     }
 
     if (!validateEmail(formData.email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      Alert.alert("Error", "Please enter a valid email address");
       return;
     }
 
     try {
       const user = await getStoredUser();
       if (user) {
-        const updatedUser = { ...user, name: formData.name, email: formData.email };
-        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+        setIsEdited(false);
+        let hasUpdates = false;
+        let hasErrors = false;
+
+        // Update username if changed
+        if (user.name !== formData.name) {
+          try {
+            await updateUserProfile(user.id, {
+              name: formData.name,
+            });
+            hasUpdates = true;
+          } catch (error) {
+            console.error("Error updating username:", error);
+            Alert.alert(
+              "Error",
+              "Failed to update username. Please try again."
+            );
+            hasErrors = true;
+          }
+        }
+
+        // Update email if changed
+        if (user.email !== formData.email && !hasErrors) {
+          try {
+            await updateUserEmail(user.id, formData.email);
+            hasUpdates = true;
+          } catch (error) {
+            console.error("Error updating email:", error);
+            Alert.alert("Error", "Failed to update email. Please try again.");
+            hasErrors = true;
+          }
+        }
+
+        if (hasUpdates && !hasErrors) {
+          Alert.alert("Success", "Account details updated successfully", [
+            { text: "OK", onPress: () => router.back() },
+          ]);
+        } else if (!hasUpdates && !hasErrors) {
+          // No changes were needed
+          router.back();
+        } else {
+          // We had errors, so restore the editing state
+          setIsEdited(true);
+        }
+      } else {
+        throw new Error("User data not found");
       }
-      Alert.alert(
-        'Success',
-        'Account details updated successfully',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
     } catch (error) {
-      console.error('Error saving user data:', error);
-      Alert.alert('Error', 'Failed to save changes. Please try again.');
+      console.error("Error in save process:", error);
+      Alert.alert("Error", "Failed to save changes. Please try again.");
+      setIsEdited(true);
     }
   };
-  */
 
   const handleBack = () => {
-    // Since editing is disabled, we can just go back directly
-    router.back();
-    /*
     if (isEdited) {
-      Alert.alert(
-        'Unsaved Changes',
-        'Do you want to discard your changes?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: () => router.back() }
-        ]
-      );
+      Alert.alert("Unsaved Changes", "Do you want to discard your changes?", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Discard", style: "destructive", onPress: () => router.back() },
+      ]);
     } else {
       router.back();
     }
-    */
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+    >
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.icon }]}>
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: colors.background,
+              borderBottomColor: colors.icon,
+            },
+          ]}
+        >
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Ionicons name="chevron-back" size={24} color={colors.text} />
             <Text style={[styles.backText, { color: colors.text }]}>Back</Text>
           </TouchableOpacity>
-          {/* Commented out save button for production */}
-          {/*
           <TouchableOpacity
             onPress={handleSave}
             style={[styles.saveButton, !isEdited && styles.saveButtonDisabled]}
@@ -156,31 +197,35 @@ export default function AccountDetailsScreen() {
               color={isEdited ? colors.tint : colors.icon}
             />
           </TouchableOpacity>
-          */}
         </View>
 
-        <ScrollView
-          style={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={[styles.section, { backgroundColor: colors.background }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Information</Text>
+        <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+          <View
+            style={[styles.section, { backgroundColor: colors.background }]}
+          >
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Personal Information
+            </Text>
 
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text }]}>Display Name</Text>
-              <View style={[
-                styles.inputContainer,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.icon
-                }
-              ]}>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Display Name
+              </Text>
+              <View
+                style={[
+                  styles.inputContainer,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.icon,
+                  },
+                ]}
+              >
                 <Ionicons name="person-outline" size={20} color={colors.icon} />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   value={formData.name}
-                  // onChangeText={(text) => handleInputChange('name', text)} // Commented out
-                  editable={false} // Make read-only
+                  onChangeText={(text) => handleInputChange("name", text)}
+                  editable={true}
                   placeholder="Enter your name"
                   placeholderTextColor={colors.icon}
                   returnKeyType="next"
@@ -189,20 +234,24 @@ export default function AccountDetailsScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.text }]}>Email Address</Text>
-              <View style={[
-                styles.inputContainer,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.icon
-                }
-              ]}>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Email Address
+              </Text>
+              <View
+                style={[
+                  styles.inputContainer,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.icon,
+                  },
+                ]}
+              >
                 <Ionicons name="mail-outline" size={20} color={colors.icon} />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   value={formData.email}
-                  // onChangeText={(text) => handleInputChange('email', text)} // Commented out
-                  editable={false} // Make read-only
+                  onChangeText={(text) => handleInputChange("email", text)}
+                  editable={true}
                   placeholder="Enter your email"
                   placeholderTextColor={colors.icon}
                   keyboardType="email-address"
@@ -256,15 +305,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: 16,
     borderBottomWidth: 1,
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   backText: {
     fontSize: 16,
@@ -272,7 +321,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   saveButton: {
     padding: 8,
@@ -289,7 +338,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 16,
   },
   formGroup: {
@@ -298,11 +347,11 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     marginBottom: 8,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderRadius: 8,
     borderWidth: 1,
     paddingHorizontal: 12,
@@ -314,8 +363,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   securityButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
@@ -324,7 +373,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   securityButtonIcon: {
     marginLeft: 8,
