@@ -42,8 +42,8 @@ export default function AppLayout() {
 
     const checkAuth = async () => {
       try {
-        const authStatus = await AsyncStorage.getItem("isAuthenticated");
-        setIsAuthenticated(authStatus === "true");
+        const token = await AsyncStorage.getItem("token");
+        setIsAuthenticated(!!token);
       } catch (error) {
         console.error("Error checking auth:", error);
         setIsAuthenticated(false);
@@ -72,7 +72,7 @@ export default function AppLayout() {
           ) : !isAuthenticated ? (
             // Show landing route when not authenticated
             <Stack.Screen
-              name="landing"
+              name="index"
               options={{
                 headerShown: false,
                 gestureEnabled: false,
