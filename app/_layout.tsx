@@ -1,3 +1,4 @@
+import React from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack, Redirect, useSegments, useRouter } from 'expo-router';
@@ -69,9 +70,9 @@ export default function AppLayout() {
               }}
             />
           ) : !isAuthenticated ? (
-            // Show login route when not authenticated
+            // Show landing route when not authenticated
             <Stack.Screen
-              name="login"
+              name="landing"
               options={{
                 headerShown: false,
                 gestureEnabled: false,
