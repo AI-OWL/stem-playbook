@@ -28,7 +28,10 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "devServer": {
+        "url": "http://localhost:5050"
+      }
     },
     "plugins": [
       "expo-router",
@@ -40,7 +43,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true
@@ -51,6 +55,10 @@
       },
       "eas": {
         "projectId": "55f58685-655f-4537-be00-0c2df24d4ee7"
+      },
+      "devServer": "http://localhost:5050",
+      "development": {
+        "devServer": "http://localhost:5050"
       }
     }
   }
