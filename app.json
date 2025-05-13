@@ -54,12 +54,14 @@
         "origin": false
       },
       "eas": {
+        "owner": "stem_playbook",
         "projectId": "55f58685-655f-4537-be00-0c2df24d4ee7"
       },
       "devServer": "http://localhost:5050",
       "development": {
         "devServer": "http://localhost:5050"
       }
-    }
+    },
+    "owner": "stem_playbook"
   }
 }
