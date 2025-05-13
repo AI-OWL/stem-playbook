@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 15.0.10",
+    "version": ">= 16.3.3",
     "appVersionSource": "remote"
   },
   "build": {
@@ -16,12 +16,6 @@
     }
   },
   "submit": {
-    "production": {
-      "ios": {
-        "appleId": "ethan@aiowl.org",
-        "ascAppId": "6743141297",
-        "appleTeamId": "RX3J3P336Y"
-      }
-    }
+    "production": {}
   }
 }
