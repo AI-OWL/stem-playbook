@@ -2,10 +2,6 @@
 import api from "./api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { User } from "../types";
-import {
-  registerForPushNotificationsAsync,
-  savePushToken,
-} from "../../src/utils/notificationUtils";
 
 /**
  * Login function - calls /auth/login
@@ -63,21 +59,6 @@ export async function login(
     await AsyncStorage.setItem("token", token);
     await AsyncStorage.setItem("user", JSON.stringify(user));
     await AsyncStorage.setItem("isAuthenticated", "true");
-
-    // After successful login, request push notification permissions
-    // and save the token to the backend
-    try {
-      const pushToken = await registerForPushNotificationsAsync();
-      if (pushToken) {
-        await savePushToken(pushToken);
-      }
-    } catch (error) {
-      console.error(
-        "[AuthService] Error registering for push notifications:",
-        error
-      );
-      // Continue even if push notification registration fails
-    }
 
     return { token, user };
   } catch (error: any) {

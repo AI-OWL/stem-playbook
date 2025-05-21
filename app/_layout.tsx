@@ -8,14 +8,12 @@ import { useFonts } from "expo-font";
 import { Stack, Redirect, useSegments, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import "react-native-reanimated";
 import "@/app/global-styles";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { View, Alert } from "react-native";
-import { setupNotificationListeners } from "@/src/utils/notificationUtils";
-import * as Notifications from "expo-notifications";
 import {
   initializeAnalytics,
   trackSessionEnd,
@@ -43,8 +41,6 @@ export default function AppLayout() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const segments = useSegments();
   const router = useRouter();
-  const notificationListener = useRef();
-  const responseListener = useRef();
 
   const [loaded] = useFonts({
     "Poppins-Regular": require("../assets/fonts/Poppins/Poppins-Regular.ttf"),
@@ -61,33 +57,6 @@ export default function AppLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
-
-  // Set up notification listeners
-  useEffect(() => {
-    // Set up notification handler
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-      }),
-    });
-
-    // Set up notification listeners if authenticated
-    if (isAuthenticated) {
-      const listeners = setupNotificationListeners(
-        (notification: Notifications.Notification) => {
-          // Handle received notifications here
-          console.log("Notification received:", notification);
-        }
-      );
-
-      // Clean up listeners on unmount
-      return () => {
-        listeners.remove();
-      };
-    }
-  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!loaded) return;
