@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Fonts } from '@/constants/Fonts';
+import { Fonts } from "@/constants/Fonts";
 import {
   View,
   Text,
@@ -12,14 +12,41 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { signup, login, confirmSignup, resendVerification } from "./services/authService";
+import {
+  signup,
+  login,
+  confirmSignup,
+  resendVerification,
+} from "./services/authService";
 import { logger } from "react-native-logs";
 
 // Create a logger instance with default settings
 const log = logger.createLogger();
 
+interface LoginData {
+  email: string;
+  password: string;
+}
+
+interface SignupData {
+  name: string;
+  email: string;
+  password: string;
+}
+
+interface VerificationData {
+  email: string;
+  code: string;
+}
+
 // Custom Checkbox Component
-const CustomCheckbox = ({ value, onValueChange }) => {
+const CustomCheckbox = ({
+  value,
+  onValueChange,
+}: {
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+}) => {
   return (
     <TouchableOpacity
       style={[styles.checkbox, value && styles.checkboxChecked]}
@@ -37,17 +64,29 @@ export default function AuthFlow() {
   const router = useRouter();
 
   // Tabs: "login" | "signup" | "verify"
-  const [activeTab, setActiveTab] = useState<"login" | "signup" | "verify">("login");
+  const [activeTab, setActiveTab] = useState<"login" | "signup" | "verify">(
+    "login"
+  );
 
   // Login form data
-  const [loginData, setLoginData] = useState({ email: "", password: "" });
+  const [loginData, setLoginData] = useState<LoginData>({
+    email: "",
+    password: "",
+  });
 
   // Sign-up form data
-  const [signupData, setSignupData] = useState({ name: "", email: "", password: "" });
+  const [signupData, setSignupData] = useState<SignupData>({
+    name: "",
+    email: "",
+    password: "",
+  });
   const [isAgeVerified, setIsAgeVerified] = useState(false); // Age verification state
 
   // Verification form data
-  const [verificationData, setVerificationData] = useState({ email: "", code: "" });
+  const [verificationData, setVerificationData] = useState<VerificationData>({
+    email: "",
+    code: "",
+  });
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -66,18 +105,78 @@ export default function AuthFlow() {
    * Handle the login flow
    */
   const handleLogin = async () => {
-    log.debug("[AuthFlow] Attempting login...", { email: loginData.email, password: "****" });
+    // Ensure we have valid input data first
+    if (!loginData.email?.trim()) {
+      setError("Email is required");
+      return;
+    }
+
+    if (!loginData.password?.trim()) {
+      setError("Password is required");
+      return;
+    }
+
+    log.debug("[AuthFlow] Attempting login...", {
+      email: loginData.email,
+      password: "****",
+    });
     setLoading(true);
     setError(null);
 
     try {
-      const response = await login(loginData.email, loginData.password);
-      log.debug("[AuthFlow] Login successful, navigating to main tabs.");
+      log.info("[AuthFlow] Sending login request to API...");
+
+      // Create a clean request object
+      const cleanLoginData = {
+        email: loginData.email.trim(),
+        password: loginData.password.trim(),
+      };
+
+      const response = await login(
+        cleanLoginData.email,
+        cleanLoginData.password
+      );
+
+      if (!response || !response.token || !response.user) {
+        throw new Error("Invalid response from server");
+      }
+
+      log.info("[AuthFlow] Login successful:", {
+        userId: response.user.id,
+        userEmail: response.user.email,
+        tokenReceived: !!response.token,
+      });
+
       router.replace("/(tabs)");
     } catch (err: any) {
-      const msg = err?.response?.data?.message || "Login failed";
-      log.error("[AuthFlow] Login error:", msg);
-      setError(msg);
+      log.error("[AuthFlow] Login error details:", {
+        message: err?.message,
+        responseData: err?.response?.data,
+        status: err?.response?.status,
+      });
+
+      // Display meaningful error message
+      let errorMessage =
+        "Login failed. Please check your credentials and try again.";
+
+      if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.response?.status === 404) {
+        errorMessage =
+          "Server not found. Please check your internet connection.";
+      } else if (err?.response?.status === 400) {
+        errorMessage = "Invalid email or password.";
+      } else if (err?.response?.status === 401) {
+        errorMessage =
+          "Invalid credentials. Please check your email and password.";
+      } else if (!err?.response) {
+        errorMessage = "Network error. Please check your internet connection.";
+      }
+
+      log.error("[AuthFlow] Login error:", errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -87,7 +186,10 @@ export default function AuthFlow() {
    * Handle the sign-up flow
    */
   const handleSignup = async () => {
-    log.debug("[AuthFlow] Attempting signup...", { email: signupData.email, name: signupData.name });
+    log.debug("[AuthFlow] Attempting signup...", {
+      email: signupData.email,
+      name: signupData.name,
+    });
     setLoading(true);
     setError(null);
 
@@ -100,7 +202,11 @@ export default function AuthFlow() {
     }
 
     try {
-      const response = await signup(signupData.name, signupData.email, signupData.password);
+      const response = await signup(
+        signupData.name,
+        signupData.email,
+        signupData.password
+      );
       log.debug("[AuthFlow] Signup successful. Prompting user to verify.");
       setVerificationData({ email: signupData.email, code: "" });
       handleTabChange("verify");
@@ -117,7 +223,9 @@ export default function AuthFlow() {
    * Handle the email verification flow
    */
   const handleVerification = async () => {
-    log.debug("[AuthFlow] Attempting verification...", { email: verificationData.email });
+    log.debug("[AuthFlow] Attempting verification...", {
+      email: verificationData.email,
+    });
     setLoading(true);
     setError(null);
 
@@ -145,7 +253,9 @@ export default function AuthFlow() {
       return;
     }
 
-    log.debug("[AuthFlow] Resending verification code...", { email: verificationData.email });
+    log.debug("[AuthFlow] Resending verification code...", {
+      email: verificationData.email,
+    });
     setLoading(true);
     setError(null);
 
@@ -174,11 +284,11 @@ export default function AuthFlow() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Logo + App Name */}
         <Image
-          source={require("../assets/images/adaptive-icon.png")}
+          source={require("../assets/images/STEM All-Stars Logo.png")}
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={styles.title}>STEM Playbook</Text>
+        <Text style={styles.title}>STEM All-Stars</Text>
 
         {/* Tab Switcher */}
         <View style={styles.tabContainer}>
@@ -186,7 +296,12 @@ export default function AuthFlow() {
             style={[styles.tab, activeTab === "login" && styles.activeTab]}
             onPress={() => handleTabChange("login")}
           >
-            <Text style={[styles.tabText, activeTab === "login" && styles.activeTabText]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "login" && styles.activeTabText,
+              ]}
+            >
               Login
             </Text>
           </TouchableOpacity>
@@ -195,7 +310,12 @@ export default function AuthFlow() {
             style={[styles.tab, activeTab === "signup" && styles.activeTab]}
             onPress={() => handleTabChange("signup")}
           >
-            <Text style={[styles.tabText, activeTab === "signup" && styles.activeTabText]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "signup" && styles.activeTabText,
+              ]}
+            >
               Sign Up
             </Text>
           </TouchableOpacity>
@@ -204,7 +324,12 @@ export default function AuthFlow() {
             style={[styles.tab, activeTab === "verify" && styles.activeTab]}
             onPress={() => handleTabChange("verify")}
           >
-            <Text style={[styles.tabText, activeTab === "verify" && styles.activeTabText]}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "verify" && styles.activeTabText,
+              ]}
+            >
               Verify
             </Text>
           </TouchableOpacity>
@@ -245,7 +370,11 @@ export default function AuthFlow() {
               secureTextEntry
             />
 
-            <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleLogin}
+              disabled={loading}
+            >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
@@ -300,9 +429,9 @@ export default function AuthFlow() {
               </Text>
             </View>
 
-            <TouchableOpacity 
-              style={[styles.button, !isAgeVerified && styles.disabledButton]} 
-              onPress={handleSignup} 
+            <TouchableOpacity
+              style={[styles.button, !isAgeVerified && styles.disabledButton]}
+              onPress={handleSignup}
               disabled={loading || !isAgeVerified}
             >
               {loading ? (
@@ -342,7 +471,11 @@ export default function AuthFlow() {
               keyboardType="number-pad"
             />
 
-            <TouchableOpacity style={styles.button} onPress={handleVerification} disabled={loading}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleVerification}
+              disabled={loading}
+            >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
@@ -450,14 +583,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fee2e2',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fee2e2",
     padding: 10,
     borderRadius: 8,
     marginBottom: 12,
-    width: '80%',
+    width: "80%",
     maxWidth: 400,
   },
   errorText: {

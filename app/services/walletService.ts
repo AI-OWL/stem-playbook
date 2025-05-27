@@ -12,7 +12,7 @@ export interface WalletCategory {
 }
 
 /**
- * Converts the backend’s object-like response into a proper array, groups cards by category,
+ * Converts the backend's object-like response into a proper array, groups cards by category,
  * and marks a card as collected if its id exists in the provided userCardIds array.
  * Cards with no valid category are skipped.
  *

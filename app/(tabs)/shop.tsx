@@ -94,7 +94,24 @@ const MOCK_STORE_ITEMS = [
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
-function ShopContent({ onPurchaseItem, isItemPurchased }) {
+interface StoreItem {
+  id: string;
+  title: string;
+  body: string;
+  points: number;
+  imageUrl: string;
+  imageGallery?: string[];
+  type: string;
+  rarity: "common" | "rare" | "epic" | "legendary";
+}
+
+function ShopContent({ 
+  onPurchaseItem, 
+  isItemPurchased 
+}: { 
+  onPurchaseItem: (item: StoreItem) => void;
+  isItemPurchased: (item: StoreItem) => boolean;
+}) {
   const systemColorScheme = useColorScheme();
   const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === "dark");
   const [userPoints, setUserPoints] = useState(0);
@@ -157,13 +174,7 @@ function ShopContent({ onPurchaseItem, isItemPurchased }) {
     <ThemedView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <Header
-        title="Store"
-        onProfilePress={() => console.log("Profile icon pressed")}
-        style={{ backgroundColor: colors.background }}
-        textColor={isDarkMode ? "#FFFFFF" : colors.text}
-        iconColor={isDarkMode ? "#FFFFFF" : colors.tint}
-      />
+      <Header title="Store" />
 
       {/* Commented out original shop content for production */}
       {/*
@@ -214,7 +225,7 @@ function ShopContent({ onPurchaseItem, isItemPurchased }) {
       {/* Hidden Page with Logo */}
       <View style={[styles.comingSoonContainer, { backgroundColor: colors.background }]}>
         <Image
-          source={require('../../assets/images/icon.png')}
+          source={require('../../assets/images/STEM All-Stars Logo.png')}
           style={styles.logoImage}
           resizeMode="contain"
         />

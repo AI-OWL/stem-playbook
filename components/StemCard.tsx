@@ -8,15 +8,25 @@ import {
   ViewStyle,
   ActivityIndicator,
 } from "react-native";
+import { trackCardClicked } from "@/app/services/analyticsService";
 
 interface StemCardProps {
   imageUrl?: string;
   name?: string;
   onPress: () => void;
   style?: ViewStyle;
+  id?: string;
+  category?: string;
 }
 
-const StemCard: React.FC<StemCardProps> = ({ imageUrl, name, onPress, style }) => {
+const StemCard: React.FC<StemCardProps> = ({
+  imageUrl,
+  name,
+  onPress,
+  style,
+  id,
+  category,
+}) => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Handle both successful load and error cases
@@ -28,8 +38,20 @@ const StemCard: React.FC<StemCardProps> = ({ imageUrl, name, onPress, style }) =
     setIsLoading(false);
   };
 
+  const handlePress = () => {
+    // Track the card click event before calling the original onPress function
+    if (id && name) {
+      trackCardClicked(id, name, category || "Unknown").catch((error) =>
+        console.error("Error tracking card click:", error)
+      );
+    }
+
+    // Call the original onPress function
+    onPress();
+  };
+
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
       <View style={[styles.cardWrapper, style]}>
         <View style={styles.cardContainer}>
           {imageUrl ? (

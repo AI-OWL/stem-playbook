@@ -1,14 +1,15 @@
 {
   "expo": {
-    "name": "StemPlaybook",
+    "name": "Stem All Stars",
     "slug": "StemPlaybook",
-    "version": "1.0.4",
+    "version": "1.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "buildNumber": "2",
       "supportsTablet": true,
       "bundleIdentifier": "com.stemplaybook.app",
       "infoPlist": {
@@ -19,6 +20,7 @@
       }
     },
     "android": {
+      "versionCode": 2,
       "package": "com.stemplaybook.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -28,7 +30,10 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "devServer": {
+        "url": "http://localhost:5050"
+      }
     },
     "plugins": [
       "expo-router",
@@ -40,7 +45,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true
@@ -50,8 +56,14 @@
         "origin": false
       },
       "eas": {
+        "owner": "stem_playbook",
         "projectId": "55f58685-655f-4537-be00-0c2df24d4ee7"
+      },
+      "devServer": "http://localhost:5050",
+      "development": {
+        "devServer": "http://localhost:5050"
       }
-    }
+    },
+    "owner": "stem_playbook"
   }
 }

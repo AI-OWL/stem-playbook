@@ -17,6 +17,7 @@ import Header from '@/components/Header';
 import { FontAwesome } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
 import { fetchTopUsers, fetchUserRank, getStoredUser } from '../services/userService';
+import { User } from '../types';
 
 const ITEMS_PER_PAGE = 20;
 const REFRESH_INTERVAL = 60000; // 1 minute
@@ -27,6 +28,21 @@ const STORAGE_KEYS = {
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
+interface Player {
+  id: string;
+  name: string;
+  points: number;
+  avatar?: string;
+  rank: number;
+  isCurrentUser: boolean;
+  animValue: Animated.Value;
+}
+
+interface UserRankData {
+  rank: number;
+  points: number;
+}
+
 const LeaderBoard = () => {
   const systemColorScheme = useColorScheme();
   const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === 'dark');
@@ -34,7 +50,7 @@ const LeaderBoard = () => {
 
   const [userPoints, setUserPoints] = useState(0);
   const [userRank, setUserRank] = useState<number | null>(null);
-  const [players, setPlayers] = useState<any[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
@@ -43,7 +59,7 @@ const LeaderBoard = () => {
   const [error, setError] = useState<string | null>(null);
 
   const scrollY = useRef(new Animated.Value(0)).current;
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<FlatList<Player>>(null);
 
   const headerScale = scrollY.interpolate({
     inputRange: [-100, 0, 100],
@@ -170,7 +186,7 @@ const LeaderBoard = () => {
         id: player.id,
         name: player.name,
         points: player.points,
-        avatar: player.avatar || '/images/default-avator.png',
+        avatar: '/images/default-avator.png',
         rank: index + 1,
         isCurrentUser: player.id === currentUserId,
         animValue: new Animated.Value(1),
@@ -183,10 +199,6 @@ const LeaderBoard = () => {
       }
 
       setHasMore(topUsers.length > ITEMS_PER_PAGE * page);
-
-      if (flatListRef.current && refresh) {
-        flatListRef.current.scrollToOffset({ offset: 0, animated: false });
-      }
     } catch (error) {
       console.error('[ERROR] Error loading leaderboard:', error);
       setError('Failed to load leaderboard data');
@@ -220,7 +232,7 @@ const LeaderBoard = () => {
     }
   }, [loading, isLoadingMore, hasMore]);
 
-  const renderItem = useCallback(({ item, index }) => {
+  const renderItem = useCallback(({ item, index }: { item: Player; index: number }) => {
     const inputRange = [
       -1,
       0,
@@ -234,14 +246,12 @@ const LeaderBoard = () => {
       extrapolate: 'clamp',
     });
 
-    // No fading in dark mode to keep text visible
     const opacity = scrollY.interpolate({
       inputRange,
       outputRange: isDarkMode ? [1, 1, 1, 1] : [1, 1, 1, 0.7],
       extrapolate: 'clamp',
     });
 
-    // LeaderboardPosition component handles its own animation for top positions
     const animatedScale = Animated.multiply(scale, item.animValue);
 
     return (
@@ -267,12 +277,12 @@ const LeaderBoard = () => {
   }, [colors, scrollY, isDarkMode]);
 
   const renderHeader = useCallback(() => (
-    <View style={{ backgroundColor: colors.primary }}>
+    <View style={{ backgroundColor: colors.background }}>
       <Animated.View
         style={[
           styles.header,
           {
-            backgroundColor: colors.primary,
+            backgroundColor: colors.background,
             transform: [{ scale: headerScale }],
           },
         ]}
@@ -378,7 +388,7 @@ const LeaderBoard = () => {
     );
   }, [hasMore, colors, isDarkMode]);
 
-  const keyExtractor = useCallback((item) => item.id, []);
+  const keyExtractor = useCallback((item: Player, index: number) => item.id, []);
 
   if (loading && !refreshing) {
     return (
@@ -398,18 +408,12 @@ const LeaderBoard = () => {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
-      <Header
-        title="Leaderboard"
-        onProfilePress={() => console.log('Profile icon pressed')}
-        style={{ backgroundColor: colors.background }}
-        textColor={isDarkMode ? '#FFFFFF' : colors.text}
-        iconColor={isDarkMode ? '#FFFFFF' : colors.tint}
-      />
+      <Header title="Leaderboard" />
       <AnimatedFlatList
-        ref={flatListRef}
+        ref={flatListRef as any}
         data={players}
-        keyExtractor={keyExtractor}
-        renderItem={renderItem}
+        renderItem={renderItem as any}
+        keyExtractor={keyExtractor as any}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={renderEmpty}
         ListFooterComponent={renderFooter}
@@ -435,7 +439,7 @@ const LeaderBoard = () => {
         }
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true, throttle: 16 }
+          { useNativeDriver: true }
         )}
         scrollEventThrottle={16}
         removeClippedSubviews={false}

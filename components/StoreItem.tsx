@@ -3,7 +3,7 @@ import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 // Function to return different images for each store item
-const getImageSource = (id) => {
+const getImageSource = (id: string) => {
   switch(id) {
     case "1":
       return require('../assets/images/Shop/PremiumAvatar.png');

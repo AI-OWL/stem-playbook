@@ -12,6 +12,17 @@ interface LeaderboardPositionProps {
   style?: ViewStyle;
 }
 
+interface RankStyles {
+  backgroundColor: string;
+  textStyle: {
+    color: string;
+    fontWeight: 'bold' | 'normal' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900';
+    fontFamily: string;
+  };
+  iconColor: string;
+  trophyColor: string;
+}
+
 const LeaderboardPosition: React.FC<LeaderboardPositionProps> = ({ 
   rank, 
   name, 
@@ -34,7 +45,7 @@ const LeaderboardPosition: React.FC<LeaderboardPositionProps> = ({
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.05,
+            toValue: 1.02,
             duration: 1000,
             useNativeDriver: true,
           }),
@@ -93,7 +104,7 @@ const LeaderboardPosition: React.FC<LeaderboardPositionProps> = ({
             { fontFamily: 'Poppins-Regular' },
             isTopThree 
               ? rankStyles.textStyle 
-              : { color: isDarkMode ? '#FFFFFF' : '#333333', fontWeight: 'bold' }
+              : { color: isDarkMode ? '#FFFFFF' : '#333333', fontWeight: 'bold' as const }
           ]}>
             {name}
           </Text>
@@ -130,7 +141,7 @@ const LeaderboardPosition: React.FC<LeaderboardPositionProps> = ({
 };
 
 // Helper function to get styling based on rank
-const getRankStyles = (rank: number) => {
+const getRankStyles = (rank: number): RankStyles => {
   switch(rank) {
     case 1:
       return {
