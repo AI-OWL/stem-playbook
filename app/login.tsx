@@ -8,8 +8,9 @@ import {
   StyleSheet,
   Image,
   SafeAreaView,
-  ScrollView,
   ActivityIndicator,
+  Platform,
+  Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import {
@@ -19,9 +20,14 @@ import {
   resendVerification,
 } from "./services/authService";
 import { logger } from "react-native-logs";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 // Create a logger instance with default settings
 const log = logger.createLogger();
+
+// Get screen dimensions for responsive design
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const isSmallScreen = screenHeight < 700; // iPhone SE and similar
 
 interface LoginData {
   email: string;
@@ -281,14 +287,24 @@ export default function AuthFlow() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardAwareScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.content}
+        resetScrollToCoords={{ x: 0, y: 0 }}
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={true}
+        enableOnAndroid={true}
+        enableAutomaticScroll={Platform.OS === 'ios'}
+        extraScrollHeight={20}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Logo + App Name */}
         <Image
           source={require("../assets/images/STEM All-Stars Logo.png")}
-          style={styles.logo}
+          style={[styles.logo, isSmallScreen && styles.logoSmall]}
           resizeMode="contain"
         />
-        <Text style={styles.title}>STEM All-Stars</Text>
+        <Text style={[styles.title, isSmallScreen && styles.titleSmall]}>STEM All-Stars</Text>
 
         {/* Tab Switcher */}
         <View style={styles.tabContainer}>
@@ -358,6 +374,8 @@ export default function AuthFlow() {
               }}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
             />
             <TextInput
               style={styles.input}
@@ -368,17 +386,19 @@ export default function AuthFlow() {
                 clearError(); // Clear error on input change
               }}
               secureTextEntry
+              autoCorrect={false}
+              returnKeyType="done"
             />
 
             <TouchableOpacity
-              style={styles.button}
+              style={[styles.button, isSmallScreen && styles.buttonSmall]}
               onPress={handleLogin}
               disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.buttonText}>Login</Text>
+                <Text style={[styles.buttonText, isSmallScreen && styles.buttonTextSmall]}>Login</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -395,6 +415,8 @@ export default function AuthFlow() {
                 setSignupData({ ...signupData, name: text });
                 clearError(); // Clear error on input change
               }}
+              autoCorrect={false}
+              returnKeyType="next"
             />
             <TextInput
               style={styles.input}
@@ -406,6 +428,8 @@ export default function AuthFlow() {
               }}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
             />
             <TextInput
               style={styles.input}
@@ -416,6 +440,8 @@ export default function AuthFlow() {
                 clearError(); // Clear error on input change
               }}
               secureTextEntry
+              autoCorrect={false}
+              returnKeyType="done"
             />
 
             {/* Age Verification Checkbox */}
@@ -430,14 +456,18 @@ export default function AuthFlow() {
             </View>
 
             <TouchableOpacity
-              style={[styles.button, !isAgeVerified && styles.disabledButton]}
+              style={[
+                styles.button,
+                isSmallScreen && styles.buttonSmall,
+                !isAgeVerified && styles.disabledButton
+              ]}
               onPress={handleSignup}
               disabled={loading || !isAgeVerified}
             >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.buttonText}>Create Account</Text>
+                <Text style={[styles.buttonText, isSmallScreen && styles.buttonTextSmall]}>Create Account</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -457,6 +487,8 @@ export default function AuthFlow() {
               }}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
             />
 
             <Text style={styles.label}>Verification Code</Text>
@@ -469,34 +501,39 @@ export default function AuthFlow() {
                 clearError(); // Clear error on input change
               }}
               keyboardType="number-pad"
+              autoCorrect={false}
+              returnKeyType="done"
             />
 
             <TouchableOpacity
-              style={styles.button}
+              style={[styles.button, isSmallScreen && styles.buttonSmall]}
               onPress={handleVerification}
               disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.buttonText}>Verify</Text>
+                <Text style={[styles.buttonText, isSmallScreen && styles.buttonTextSmall]}>Verify</Text>
               )}
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.button, styles.secondaryButton]}
+              style={[styles.button, styles.secondaryButton, isSmallScreen && styles.buttonSmall]}
               onPress={handleResendCode}
               disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.buttonText}>Resend Code</Text>
+                <Text style={[styles.buttonText, isSmallScreen && styles.buttonTextSmall]}>Resend Code</Text>
               )}
             </TouchableOpacity>
           </View>
         )}
-      </ScrollView>
+
+        {/* Extra space at bottom for keyboard clearance */}
+        <View style={styles.bottomSpacer} />
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
@@ -507,16 +544,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f5f5f5",
   },
+  scrollContainer: {
+    flex: 1,
+  },
   content: {
     flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 20 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
   },
   logo: {
     width: 120,
     height: 120,
     marginBottom: 20,
+  },
+  logoSmall: {
+    width: 80,
+    height: 80,
+    marginBottom: 15,
   },
   title: {
     fontFamily: "Poppins-Bold",
@@ -524,63 +571,113 @@ const styles = StyleSheet.create({
     color: "#1e40af",
     marginBottom: 24,
   },
+  titleSmall: {
+    fontSize: 24,
+    marginBottom: 16,
+  },
   tabContainer: {
     flexDirection: "row",
     marginBottom: 20,
-    borderRadius: 8,
-    overflow: "hidden",
+    borderRadius: 10,
     backgroundColor: "#e5e7eb",
-    width: "80%", // Adjusted width to prevent cutoff
+    padding: 4,
+    width: "90%",
     alignSelf: "center",
   },
   tab: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16, // Increased horizontal padding
+    paddingVertical: isSmallScreen ? 8 : 10,
+    paddingHorizontal: 16,
     alignItems: "center",
+    borderRadius: 8,
   },
   activeTab: {
-    backgroundColor: "#1e40af",
+    backgroundColor: "#ffffff",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   tabText: {
     fontFamily: "Poppins-Medium",
-    fontSize: 16,
+    fontSize: isSmallScreen ? 14 : 16,
     color: "#4b5563",
-    textAlign: "center", // Ensure text is centered
+    textAlign: "center",
   },
   activeTabText: {
-    color: "#ffffff",
+    color: "#1e40af",
+    fontFamily: "Poppins-Bold",
   },
   form: {
     width: "100%",
     maxWidth: 400,
+    alignSelf: "center",
   },
   input: {
     fontFamily: "Poppins-Regular",
     backgroundColor: "#ffffff",
-    padding: 16,
+    padding: isSmallScreen ? 12 : 16,
     borderRadius: 8,
     marginBottom: 12,
-    fontSize: 16,
+    fontSize: isSmallScreen ? 14 : 16,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   button: {
     backgroundColor: "#1e40af",
-    padding: 16,
+    padding: isSmallScreen ? 14 : 16,
     borderRadius: 8,
     alignItems: "center",
+    justifyContent: "center",
     marginTop: 8,
+    minHeight: isSmallScreen ? 44 : 50,
+    shadowColor: "#1e40af",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  buttonSmall: {
+    padding: 12,
+    minHeight: 44,
   },
   secondaryButton: {
     backgroundColor: "#6b7280",
+    shadowColor: "#6b7280",
   },
   disabledButton: {
     backgroundColor: "#9ca3af",
     opacity: 0.7,
+    shadowOpacity: 0.1,
   },
   buttonText: {
     fontFamily: "Poppins-Bold",
-    color: "#ffffff",
-    fontSize: 16,
+    color: "#FFFFFF",
+    fontSize: isSmallScreen ? 14 : 16,
+    textAlign: "center",
+    fontWeight: "700",
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
+  },
+  buttonTextSmall: {
+    fontSize: 14,
+    fontWeight: "700",
   },
   errorContainer: {
     flexDirection: "row",
@@ -590,13 +687,22 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
     marginBottom: 12,
-    width: "80%",
+    width: "90%",
     maxWidth: 400,
+    shadowColor: "#ef4444",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   errorText: {
     fontFamily: "Poppins-Medium",
     color: "red",
     flex: 1,
+    fontSize: isSmallScreen ? 12 : 14,
   },
   errorDismiss: {
     padding: 5,
@@ -604,11 +710,11 @@ const styles = StyleSheet.create({
   errorDismissText: {
     fontFamily: "Poppins-Medium",
     color: "#dc2626",
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12 : 14,
   },
   label: {
     fontFamily: "Poppins-Regular",
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12 : 14,
     color: "#374151",
     marginBottom: 4,
     marginLeft: 4,
@@ -636,12 +742,15 @@ const styles = StyleSheet.create({
   checkmark: {
     width: 12,
     height: 12,
-    backgroundColor: "#ffffff", // Simple checkmark representation
+    backgroundColor: "#ffffff",
   },
   checkboxLabel: {
     fontFamily: "Poppins-Regular",
-    fontSize: 14,
+    fontSize: isSmallScreen ? 12 : 14,
     color: "#374151",
     flexShrink: 1,
+  },
+  bottomSpacer: {
+    height: 100,
   },
 });
